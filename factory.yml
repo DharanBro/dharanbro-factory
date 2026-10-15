@@ -1,41 +1,103 @@
-# Factory config. Per-task override: tasks/<id>/factory.override.yml (same shape, deep-merged).
-# Model/effort are passed as CLI flags to each worker session only -> global Claude settings are never touched.
+# Factory pipeline configuration. Override per task in tasks/<id>/factory.override.yml.
+runner: auto                 # auto: Herdr inside Herdr, otherwise headless
+agent_override: null         # claude | codex | null; route every stage through one harness
+max_parallel_workers: 4
+keep_done_tabs: false        # Herdr only
 
-runner: auto                # auto = herdr when inside Herdr (HERDR_ENV=1), else headless `claude -p`
-max_parallel_workers: 4     # cap on simultaneous workers (token burst control)
-auto_trust_worktrees: true # Herdr: auto-answer Claude's one-time "trust this folder" dialog for worktrees the factory created
-keep_done_tabs: false       # Herdr: close a worker's tab when done (failed/blocked tabs always stay open)
+# Each harness defines its own CLI and Herdr arguments. The runner expands
+# {root}, {task_dir}, {cwd}, {model}, and {effort} without a shell.
+agents:
+  claude:
+    headless:
+      command: [claude, -p, --model, "{model}", --effort, "{effort}", --add-dir, "{root}", --add-dir, "{task_dir}"]
+      prompt_delivery: argument
+    herdr:
+      kind: claude
+      args: [--model, "{model}", --effort, "{effort}", --add-dir, "{root}", --add-dir, "{task_dir}"]
+  codex:
+    headless:
+      command: [codex, exec, --full-auto, --model, "{model}", -c, "model_reasoning_effort={effort}", --add-dir, "{root}", --add-dir, "{task_dir}", "-"]
+      prompt_delivery: stdin
+    herdr:
+      kind: codex
+      args: [--model, "{model}", -c, "model_reasoning_effort={effort}", --add-dir, "{root}", --add-dir, "{task_dir}"]
 
 caps:
-  fix_tries: 3              # UI-test / failure fix loop per repo before writing blocked.md
-  review_rounds: 2          # code-review must-fix rounds
-  coderabbit_rounds: 5      # /factory-review loop limit
-  coderabbit_wait_min: 20   # wait for CodeRabbit per round
+  fix_tries: 3
+  review_rounds: 2
+  coderabbit_rounds: 5
+  coderabbit_wait_min: 20
   stage_timeout_min: 90
   grill_timeout_min: 480
 
-# model: opus|sonnet|haiku|<full id>   effort: low|medium|high|xhigh|max
+# Each stage names its default harness and defines a profile for every harness
+# it can run on. A profile may also set command or herdr_args for this stage.
 stages:
-  lead:        { model: sonnet, effort: low }     # conductor: reads only state + 1-line summaries
-  intake:      { model: haiku,  effort: low }
-  research:    { model: sonnet, effort: medium }
-  plan:        { model: opus,   effort: high }
-  plan_review: { model: sonnet, effort: medium }
-  grill:       { model: opus,   effort: high }    # interactive, you talk to it directly
-  execute:     { model: sonnet, effort: medium }
-  fix:         { model: sonnet, effort: medium }  # fix loops (UI-test failures, CodeRabbit comments)
-  ui_test:     { model: sonnet, effort: medium }
-  code_review: { model: opus,   effort: high }
-  ci_check:    { model: sonnet, effort: medium }  # pre-PR: reproduce the repo's CI locally
-  pr:          { model: haiku,  effort: low }
+  lead:
+    default: claude
+    agents:
+      claude: { model: sonnet, effort: low }
+      codex:  { model: gpt-6-sol, effort: low }
+  intake:
+    default: claude
+    agents:
+      claude: { model: haiku, effort: low }
+      codex:  { model: gpt-6-sol, effort: low }
+  research:
+    default: claude
+    agents:
+      claude: { model: sonnet, effort: medium }
+      codex:  { model: gpt-6-sol, effort: medium }
+  plan:
+    default: claude
+    agents:
+      claude: { model: opus, effort: high }
+      codex:  { model: gpt-6-sol, effort: high }
+  plan_review:
+    default: claude
+    agents:
+      claude: { model: sonnet, effort: medium }
+      codex:  { model: gpt-6-sol, effort: medium }
+  grill:
+    default: claude
+    agents:
+      claude: { model: opus, effort: high }
+      codex:  { model: gpt-6-sol, effort: high }
+  execute:
+    default: codex
+    agents:
+      claude: { model: sonnet, effort: medium }
+      codex:  { model: gpt-6-sol, effort: medium }
+  fix:
+    default: codex
+    agents:
+      claude: { model: sonnet, effort: medium }
+      codex:  { model: gpt-6-sol, effort: medium }
+  ui_test:
+    default: codex
+    agents:
+      claude: { model: sonnet, effort: medium }
+      codex:  { model: gpt-6-sol, effort: medium }
+  code_review:
+    default: claude
+    agents:
+      claude: { model: opus, effort: high }
+      codex:  { model: gpt-6-sol, effort: high }
+  ci_check:
+    default: codex
+    agents:
+      claude: { model: sonnet, effort: medium }
+      codex:  { model: gpt-6-sol, effort: medium }
+  pr:
+    default: claude
+    agents:
+      claude: { model: haiku, effort: low }
+      codex:  { model: gpt-6-sol, effort: low }
 
 git:
-  branch: "{id}-{slug}"     # jira tasks
+  branch: "{id}-{slug}"
   idea_branch: "idea/{slug}"
-  commit: "{type}({id}): {subject}"   # Conventional Commits, Jira id (or idea slug) as scope
+  commit: "{type}({id}): {subject}"
 
 jira:
-  comment_on_pr: true       # one comment with PR links; never changes ticket status
-
-# extra flags for every worker session. Unlisted shell commands prompt -> Herdr shows "blocked" + notifies you.
-worker_args: ["--permission-mode", "acceptEdits"]
+  comment_on_pr: true

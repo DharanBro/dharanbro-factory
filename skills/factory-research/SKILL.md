@@ -5,7 +5,7 @@ description: Factory worker. Research ONE repo for a task (read-only) and write 
 
 Inputs: `$TASK_DIR/input.md`; your repo is `$ROOT/repos/$REPO` (your cwd; read-only, no edits, no installs); its entry in `$ROOT/repos.yml` for test commands. Do not read other repos' research.
 
-Method: grep/glob and targeted reads, never whole large files. Read the repo's CLAUDE.md/README if present. Stop as soon as you can answer the sections below.
+Method: grep/glob and targeted reads, never whole large files. Read the repo's AGENTS.md, CLAUDE.md, or README if present. Stop as soon as you can answer the sections below.
 
 Write `$TASK_DIR/research/$REPO.md`, max ~80 lines:
 1. `Relevance:` first line, one of `NEEDED` / `MAYBE` / `NOT NEEDED` + one-line why. NOT NEEDED -> write only this line and finish.
