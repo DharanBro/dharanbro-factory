@@ -1,0 +1,9 @@
+# local to each user -> keeps the factory setup reusable
+repos.yml
+repos/
+tasks/
+.browser-profile/
+.claude/settings.local.json
+.DS_Store
+sonar/
+secrets.env

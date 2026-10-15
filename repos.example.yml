@@ -1,0 +1,32 @@
+# Copy to repos.yml (gitignored) or just run /factory-add-repo. One entry per repo.
+# `description` is what research uses to shortlist repos for a task -> make it say what the repo OWNS.
+repos:
+  example-dashboard:
+    remote: git@github.com:your-org/example-dashboard.git
+    branch: main                   # base branch for worktrees + PRs
+    type: frontend                 # frontend | backend | library  (frontend => browser UI test stage)
+    description: Web dashboard for ops users; React app; consumes example-ui-kit.
+    install: yarn install --frozen-lockfile
+    test: yarn test --watchAll=false
+    lint: yarn lint
+    typecheck: yarn tsc --noEmit
+    dev_cmd: yarn start            # frontend only
+    dev_url: http://localhost:3000 # frontend only
+    ui_test_doc: docs/ui-testing.md  # path INSIDE the repo: how to run the app + log in (Auth0 etc.)
+    ci_checks:                     # pre-PR gate: what the repo's CI runs that can run locally (optional; derived from CI config if unset)
+      - yarn lint
+      - yarn tsc --noEmit
+      - yarn test --watchAll=false
+    sonar:                         # optional: mirrored into local SonarQube by scripts/sonar-sync.sh
+      project_key: example-dashboard   # key on the org SonarQube server
+      url: http://localhost:9100       # local factory-sonar
+    coderabbit: true               # /factory-review runs the CodeRabbit loop for this repo
+  example-ui-kit:
+    remote: git@github.com:your-org/example-ui-kit.git
+    branch: main
+    type: library
+    description: Shared React component library used by example-dashboard.
+    install: yarn install --frozen-lockfile
+    test: yarn test
+    lint: yarn lint
+    coderabbit: true

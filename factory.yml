@@ -1,0 +1,41 @@
+# Factory config. Per-task override: tasks/<id>/factory.override.yml (same shape, deep-merged).
+# Model/effort are passed as CLI flags to each worker session only -> global Claude settings are never touched.
+
+runner: auto                # auto = herdr when inside Herdr (HERDR_ENV=1), else headless `claude -p`
+max_parallel_workers: 4     # cap on simultaneous workers (token burst control)
+auto_trust_worktrees: true # Herdr: auto-answer Claude's one-time "trust this folder" dialog for worktrees the factory created
+keep_done_tabs: false       # Herdr: close a worker's tab when done (failed/blocked tabs always stay open)
+
+caps:
+  fix_tries: 3              # UI-test / failure fix loop per repo before writing blocked.md
+  review_rounds: 2          # code-review must-fix rounds
+  coderabbit_rounds: 5      # /factory-review loop limit
+  coderabbit_wait_min: 20   # wait for CodeRabbit per round
+  stage_timeout_min: 90
+  grill_timeout_min: 480
+
+# model: opus|sonnet|haiku|<full id>   effort: low|medium|high|xhigh|max
+stages:
+  lead:        { model: sonnet, effort: low }     # conductor: reads only state + 1-line summaries
+  intake:      { model: haiku,  effort: low }
+  research:    { model: sonnet, effort: medium }
+  plan:        { model: opus,   effort: high }
+  plan_review: { model: sonnet, effort: medium }
+  grill:       { model: opus,   effort: high }    # interactive, you talk to it directly
+  execute:     { model: sonnet, effort: medium }
+  fix:         { model: sonnet, effort: medium }  # fix loops (UI-test failures, CodeRabbit comments)
+  ui_test:     { model: sonnet, effort: medium }
+  code_review: { model: opus,   effort: high }
+  ci_check:    { model: sonnet, effort: medium }  # pre-PR: reproduce the repo's CI locally
+  pr:          { model: haiku,  effort: low }
+
+git:
+  branch: "{id}-{slug}"     # jira tasks
+  idea_branch: "idea/{slug}"
+  commit: "{type}({id}): {subject}"   # Conventional Commits, Jira id (or idea slug) as scope
+
+jira:
+  comment_on_pr: true       # one comment with PR links; never changes ticket status
+
+# extra flags for every worker session. Unlisted shell commands prompt -> Herdr shows "blocked" + notifies you.
+worker_args: ["--permission-mode", "acceptEdits"]
