@@ -1,6 +1,6 @@
 ---
 name: factory-review
-description: CodeRabbit loop for a factory task's PRs. Run after you mark the draft PRs "ready for review" (CodeRabbit skips drafts). Usage `/factory-review <task-id>`.
+description: CodeRabbit loop for a factory task's PRs. Run after you mark the draft PRs "ready for review" (CodeRabbit skips drafts). Pass the task id.
 ---
 
 `ROOT` = repo root. Inputs: `tasks/<id>/artifacts/prs.md`, `factory.yml` (`caps.coderabbit_rounds`). Keep chat minimal: you only handle counts and one-line worker results.

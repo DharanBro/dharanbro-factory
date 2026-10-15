@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # run-stage.sh <task> <skill> <stage> [repo]
-# Run ONE worker (fresh claude session) and block until it writes tasks/<task>/work/<key>.json.
+# Run one configured worker and block until it writes tasks/<task>/work/<key>.json.
 # Env: EXTRA="free text appended to prompt" (e.g. "mode=fix report=artifacts/x.md"), TRY=<n> (key suffix -t<n>).
 # Prints one line: "<key> <status> <summary>". Exit 0 = done, 2 = blocked/failed/timeout, 3 = needs human but no Herdr.
 . "$(dirname "$0")/lib.sh"
@@ -9,13 +9,17 @@ key="$stage${repo:+-$repo}${TRY:+-t$TRY}"
 td="$ROOT/tasks/$task"; wf="$td/work/$key.json"; mkdir -p "$td/work"
 C=$(conf "$task"); R=$(runner "$task")
 cfg() { jq -r "$1" <<<"$C"; }
+agent=$(stage_agent "$C" "$stage")
+model=$(stage_model "$C" "$stage" "$agent")
+effort=$(stage_effort "$C" "$stage" "$agent")
+[ -n "$agent" ] && [ -n "$model" ] && [ -n "$effort" ] || { echo "$key failed missing agent, model for '$agent', or effort in factory.yml"; exit 2; }
+acfg() { jq -r --arg agent "$agent" "$1" <<<"$C"; }
+[ "$(acfg '.agents[$agent] != null')" = true ] || { echo "$key failed unknown agent: $agent"; exit 2; }
 
-model=$(cfg ".stages.${stage}.model // empty"); effort=$(cfg ".stages.${stage}.effort // empty")
-[ -n "$model" ] || { echo "$key failed no model configured for stage '$stage' in factory.yml"; exit 2; }
 interactive=0; [ "$stage" = grill ] && interactive=1
 tmo=$(cfg '.caps.stage_timeout_min // 90'); [ $interactive = 1 ] && tmo=$(cfg '.caps.grill_timeout_min // 480')
 
-# working dir: factory root (skills + CLAUDE.md load natively), or the repo checkout for repo stages
+# Working dir: factory root, or the repo checkout for repo stages.
 cwd="$ROOT"
 if [ -n "$repo" ]; then
   if [ "$stage" = research ]; then cwd="$ROOT/repos/$repo"; else cwd="$td/$repo"; fi
@@ -23,31 +27,33 @@ if [ -n "$repo" ]; then
 fi
 [ $interactive = 1 ] && [ "$R" != herdr ] && { echo "$key needs-human run grill inline (no Herdr)"; exit 3; }
 
-args=(--model "$model")
-[ -n "$effort" ] && args+=(--effort "$effort")
-args+=(--settings "$ROOT/worker-settings.json" --add-dir "$ROOT" --add-dir "$td")
-while IFS= read -r a; do [ -n "$a" ] && args+=("$a"); done < <(cfg '.worker_args[]?')
+skill_file="$ROOT/skills/$skill/SKILL.md"
+[ -f "$skill_file" ] || { echo "$key failed missing playbook $skill_file"; exit 2; }
+prompt="Follow $ROOT/AGENTS.md and $skill_file exactly. TASK=$task ROOT=$ROOT TASK_DIR=$td REPO=${repo:--} KEY=$key ${EXTRA:+EXTRA=\"$EXTRA\" }Your LAST action must be: bash $ROOT/scripts/worker-done.sh $task $key <done|blocked|failed> \"<one-line summary>\" . Be terse in chat; put detail in files."
 
-if [ "$stage" = ui_test ]; then   # factory-owned browser: Chrome for Testing + factory profile, headless
+# Backends may consume this standard Playwright MCP config via their own CLI or wrapper.
+if [ "$stage" = ui_test ]; then
   mkdir -p "$ROOT/.browser-profile"
-  jq -n --arg exe "$("$ROOT/scripts/chrome-path.sh")" --arg prof "$ROOT/.browser-profile" \
+  chrome=$("$ROOT/scripts/chrome-path.sh") || { echo "$key failed Chrome for Testing unavailable"; exit 2; }
+  export FACTORY_UI_MCP_CONFIG="$td/work/ui-mcp.json"
+  jq -n --arg exe "$chrome" --arg prof "$ROOT/.browser-profile" \
     '{mcpServers:{playwright:{command:"npx",args:["@playwright/mcp@latest","--executable-path",$exe,"--user-data-dir",$prof,"--headless"]}}}' \
-    > "$td/work/ui-mcp.json"
-  args+=(--mcp-config "$td/work/ui-mcp.json" --strict-mcp-config)
+    > "$FACTORY_UI_MCP_CONFIG"
 fi
 
-prompt="Follow $ROOT/.claude/skills/$skill/SKILL.md exactly. TASK=$task ROOT=$ROOT TASK_DIR=$td REPO=${repo:--} KEY=$key ${EXTRA:+EXTRA=\"$EXTRA\" }Your LAST action must be: bash $ROOT/scripts/worker-done.sh $task $key <done|blocked|failed> \"<one-line summary>\" . Be terse in chat; put detail in files."
-
 rm -f "$wf"
-export AUTO_TRUST=$(cfg '.auto_trust_worktrees // true')
 tab=""; name=""
 if [ "$R" = herdr ]; then
+  kind=$(acfg '.agents[$agent].herdr.kind // empty')
+  [ -n "$kind" ] || { echo "$key failed agents.$agent.herdr.kind is required"; exit 2; }
+  args=()
+  while IFS= read -r a; do args+=("$(agent_arg "$a" "$td" "$cwd" "$model" "$effort")"); done < <(jq -r --arg agent "$agent" --arg stage "$stage" '.agents[$agent].herdr.args[]?, .stages[$stage].agents[$agent].herdr_args[]?' <<<"$C")
   ws=$(jq -r '.workspace_id // empty' "$td/work/workspace.json" 2>/dev/null || true); ws="${ws:-${HERDR_WORKSPACE_ID:-}}"
   focus=--no-focus; [ $interactive = 1 ] && focus=--focus
   t=$(herdr tab create ${ws:+--workspace "$ws"} --cwd "$cwd" --label "$key" $focus)
   pane=$(jq -r .result.root_pane.pane_id <<<"$t"); tab=$(jq -r .result.tab.tab_id <<<"$t")
-  name=$(norm "$task-$key")
-  herdr_spawn "$name" "$pane" "$prompt" "${args[@]}" || { echo "$key failed agent start"; exit 2; }
+  name=$(norm "$task-$key-$agent-$tab")
+  herdr_spawn "$kind" "$name" "$pane" "$prompt" "${args[@]}" || { echo "$key failed agent start"; exit 2; }
   [ $interactive = 1 ] && herdr notification show "$task: grill ready" --body "Answer in tab '$key'" --sound request >/dev/null || true
   deadline=$(( $(date +%s) + tmo * 60 )); warned=0
   while [ ! -s "$wf" ]; do
@@ -59,7 +65,19 @@ if [ "$R" = herdr ]; then
     sleep 5
   done
 else
-  ( cd "$cwd" && claude -p "$prompt" "${args[@]}" >"$td/work/$key.log" 2>&1 ) || true
+  cmd=()
+  while IFS= read -r a; do cmd+=("$(agent_arg "$a" "$td" "$cwd" "$model" "$effort")"); done < <(jq -r --arg agent "$agent" --arg stage "$stage" '.stages[$stage].agents[$agent].command[]?' <<<"$C")
+  if [ ${#cmd[@]} -eq 0 ]; then
+    while IFS= read -r a; do cmd+=("$(agent_arg "$a" "$td" "$cwd" "$model" "$effort")"); done < <(acfg '.agents[$agent].headless.command[]?')
+  fi
+  [ ${#cmd[@]} -gt 0 ] || { echo "$key failed agents.$agent.headless.command is required"; exit 2; }
+  command -v "${cmd[0]}" >/dev/null 2>&1 || { echo "$key failed command not found: ${cmd[0]}"; exit 2; }
+  delivery=$(acfg '.agents[$agent].headless.prompt_delivery // "stdin"')
+  case "$delivery" in
+    stdin) ( cd "$cwd" && printf '%s\n' "$prompt" | "${cmd[@]}" >"$td/work/$key.log" 2>&1 ) || true ;;
+    argument) ( cd "$cwd" && "${cmd[@]}" "$prompt" >"$td/work/$key.log" 2>&1 ) || true ;;
+    *) echo "$key failed unsupported prompt_delivery: $delivery"; exit 2 ;;
+  esac
 fi
 
 if [ -s "$wf" ]; then

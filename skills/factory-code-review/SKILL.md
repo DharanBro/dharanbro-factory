@@ -10,7 +10,7 @@ Classify every finding:
 - **should-fix**: maintainability, naming, duplication of an existing helper
 - **nit**: style
 
-Loop up to `caps.review_rounds` (2): fix all must-fix (commit `fix(<ID>): review: ...`, trailer `Co-Authored-By: Claude <noreply@anthropic.com>`), rerun the repo's test/lint/typecheck, re-review the new diff only. Never fix should-fix/nit and never loop on them.
+Loop up to `caps.review_rounds` (2): fix all must-fix (commit `fix(<ID>): review: ...`), rerun the repo's test/lint/typecheck, re-review the new diff only. Never fix should-fix/nit and never loop on them.
 
 Write `$TASK_DIR/artifacts/review-$REPO.md` (max ~40 lines): rounds, what was fixed, then `## Known follow-ups` (should-fix + nits, `path:line: issue`) and any unresolved must-fix.
 

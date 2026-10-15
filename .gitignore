@@ -3,7 +3,7 @@ repos.yml
 repos/
 tasks/
 .browser-profile/
-.claude/settings.local.json
+.claude/
 .DS_Store
 sonar/
 secrets.env

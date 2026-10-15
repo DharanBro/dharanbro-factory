@@ -1,9 +1,9 @@
 ---
 name: factory-ui-test
-description: Factory worker. Browser-test ONE frontend repo's acceptance scenarios (headless Chrome for Testing via Playwright MCP, factory browser profile) and write a pass/fail report. Launched by the factory lead.
+description: Factory worker. Browser-test ONE frontend repo's acceptance scenarios (headless Chrome for Testing via Playwright, factory browser profile) and write a pass/fail report. Launched by the factory lead.
 ---
 
-Your cwd is the repo worktree `$TASK_DIR/$REPO`. Your only MCP is Playwright (headless Chrome for Testing, profile `$ROOT/.browser-profile`, so a saved login carries over).
+Your cwd is the repo worktree `$TASK_DIR/$REPO`. Use Playwright with headless Chrome for Testing and profile `$ROOT/.browser-profile`, so a saved login carries over. If the browser tool is unavailable, finish `blocked` with the missing capability.
 
 Library repos (no UI of their own) are tested through a consumer frontend registered in repos.yml (e.g. encore-dashboard) with the library's local build/tarball installed; the plan lists that consumer as a `ui: true` harness repo. Evidence = screenshots there.
 
