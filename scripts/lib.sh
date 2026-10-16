@@ -65,10 +65,10 @@ agent_arg() {
   printf '%s' "$value"
 }
 
-# Start a configured agent in an existing Herdr pane and submit the prompt.
+# Start a configured agent in an existing Herdr pane and verify prompt delivery.
 # Startup dialogs remain visible for the user to resolve.
 herdr_spawn() {
-  local kind="$1" name="$2" pane="$3" prompt="$4" i deadline notified=0; shift 4
+  local kind="$1" name="$2" pane="$3" prompt="$4" i deadline notified=0 result; shift 4
   [ -n "$kind" ] || { echo "agent.herdr.kind is required" >&2; return 1; }
   for i in 1 2 3 4 5; do
     herdr agent start "$name" --kind "$kind" --pane "$pane" --timeout 30000 -- "$@" >/dev/null 2>&1 && break
@@ -77,11 +77,17 @@ herdr_spawn() {
     sleep 2
   done
   deadline=$(( $(date +%s) + 600 ))
-  until herdr agent prompt "$name" "$prompt" >/dev/null 2>&1; do
+  until result=$(herdr agent prompt "$name" "$prompt" --wait --until working --timeout 30000 2>/dev/null); do
     if [ $notified = 0 ]; then
       herdr notification show "Worker blocked at startup" --body "Open tab '$name' and answer the dialog" --sound request >/dev/null 2>&1 || true; notified=1
     fi
     [ "$(date +%s)" -gt "$deadline" ] && { echo "worker never became ready" >&2; return 1; }
     sleep 4
   done
+  # A successful PTY write can still land in a startup dialog instead of the
+  # agent composer. Require Herdr to observe the new working state.
+  if ! jq -e '.result.type == "agent_prompted" and .result.agent.agent_status == "working"' <<<"$result" >/dev/null; then
+    echo "worker prompt submission unverified; inspect tab '$name'" >&2
+    return 1
+  fi
 }

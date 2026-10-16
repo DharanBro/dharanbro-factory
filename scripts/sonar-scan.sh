@@ -77,21 +77,7 @@ gstatus=$(jq -r .projectStatus.status <<<"$st")
 # conditions and the new-code baseline can include untouched files, so it is reported for information only.
 L "$LOCAL/api/issues/search?componentKeys=$K&inNewCodePeriod=true&resolved=false&ps=500&s=SEVERITY&asc=false" > "$W/issues.json"
 git -C "$wt" diff -U0 --no-color "$mb" HEAD > "$W/branch.diff"
-mine=$(python3 -I - "$W/issues.json" "$W/branch.diff" <<'PY'
-import sys, json, re
-issues = json.load(open(sys.argv[1]))["issues"]
-ch, f = {}, None
-for l in open(sys.argv[2]):
-    if l.startswith("+++ b/"): f = l[6:].strip(); ch.setdefault(f, [])
-    elif l.startswith("@@") and f:
-        m = re.search(r"\+(\d+)(?:,(\d+))?", l); a = int(m.group(1)); n = int(m.group(2) or 1)
-        ch[f].append((a, a + n - 1))
-for i in issues:
-    path = i["component"].split(":", 1)[-1]; line = i.get("line") or 0
-    if path in ch and (line == 0 or any(a <= line <= b for a, b in ch[path])):
-        print(f"- [{i['severity']}] {i['rule']} {path}:{line} {i['message']}")
-PY
-)
+mine=$(python3 -I "$ROOT/scripts/sonar_changed_issues.py" "$W/issues.json" "$W/branch.diff")
 [ -n "$mine" ] && status=ERROR || status=OK
 {
   echo "# sonar: $repo ($(date -u +%FT%TZ))"; echo
