@@ -29,7 +29,8 @@ fi
 
 skill_file="$ROOT/skills/$skill/SKILL.md"
 [ -f "$skill_file" ] || { echo "$key failed missing playbook $skill_file"; exit 2; }
-prompt="Follow $ROOT/AGENTS.md and $skill_file exactly. TASK=$task ROOT=$ROOT TASK_DIR=$td REPO=${repo:--} KEY=$key ${EXTRA:+EXTRA=\"$EXTRA\" }Your LAST action must be: bash $ROOT/scripts/worker-done.sh $task $key <done|blocked|failed> \"<one-line summary>\" . Be terse in chat; put detail in files."
+run=$(uuidgen); stamp="$td/work/$key.stamp"; : > "$stamp"   # RUN= marks this worker's session log for usage.sh
+prompt="Follow $ROOT/AGENTS.md and $skill_file exactly. TASK=$task ROOT=$ROOT TASK_DIR=$td REPO=${repo:--} KEY=$key RUN=$run ${EXTRA:+EXTRA=\"$EXTRA\" }Your LAST action must be: bash $ROOT/scripts/worker-done.sh $task $key <done|blocked|failed> \"<one-line summary>\" . Be terse in chat; put detail in files."
 
 # Backends may consume this standard Playwright MCP config via their own CLI or wrapper.
 if [ "$stage" = ui_test ]; then
@@ -80,6 +81,7 @@ else
   esac
 fi
 
+bash "$ROOT/scripts/usage.sh" log "$task" "$key" "$agent" "$run" "$stamp" || true; rm -f "$stamp"
 if [ -s "$wf" ]; then
   status=$(jq -r .status "$wf"); summary=$(jq -r .summary "$wf")
 else
