@@ -7,10 +7,12 @@ Your cwd is the repo worktree `$TASK_DIR/$REPO`; follow its local instructions. 
 
 Inputs: from `$TASK_DIR/plan.md` read ONLY `## Goal`, `## Acceptance criteria`, and `## Repo: $REPO`; `$TASK_DIR/decisions.md`; this repo's entry in `$ROOT/repos.yml` (install/test/lint/typecheck). `$TASK_DIR/state.json` has the branch.
 
+Ponytail full, all modes: build the least that meets the plan and acceptance criteria. Reuse existing code/stdlib/installed deps before writing new; no speculative abstractions, config, or files. Never drop plan slices, TDD, validation, error handling, or tests to be lazy.
+
 ## mode normal (default)
 1. Install deps if missing (`install` command).
 2. Resume point: slice numbers already in `$TASK_DIR/work/progress-$REPO.txt` are done; continue with the next. 
-3. Per slice: write the failing test, see it fail, implement, see it pass, run lint + typecheck + the affected tests, then commit: `<type>(<ID>): <subject>` (Conventional Commits; ID = Jira key or idea slug from state.json). Then append `slice N <sha>` to the progress file.
+3. Per slice: write the failing test, see it fail, implement, see it pass, run lint + typecheck + the affected tests, then commit: `<type>(<ID>): <subject>` (Conventional Commits; ID = Jira key or idea slug from state.json). Then append `slice N <sha> red=<exit code of the first run of the new test, before the implementation>` to the progress file. If you did not see the test fail first, write `red=none`; never invent a code.
 4. Same failure 3 times in a row (`caps.fix_tries`) -> write `$TASK_DIR/blocked.md` (what, tries, output tail), finish `blocked`.
 5. Unit tests must not be time-sensitive: no real clocks/timers, no sleeps, no tight timeouts, and no long loops of UI events (CI is slower than local; a 5s default timeout flaked in DP-6969). Use fake timers or deterministic waits, and keep each test small and fast. Never fix flakiness by raising a timeout.
 6. At the end run the full test + lint + typecheck once. Reuse existing helpers; add nothing the plan does not ask for.
@@ -21,4 +23,6 @@ Read only that report (relative to `$TASK_DIR`). Fix the root cause of each fail
 ## mode coderabbit (`EXTRA` has `mode=coderabbit comments=<path> pr=<n>`)
 For each comment in the file: if valid, fix it (commit `fix(<ID>): address review ...`). If already handled by existing code or you disagree with reason, reply on the thread instead: `gh api repos/<owner>/<repo>/pulls/<pr>/comments/<comment id>/replies -f body="@coderabbitai <where/how it is handled>"`. Push once at the end: `git push`.
 
-Finish: `bash $ROOT/scripts/worker-done.sh $TASK $KEY done "<n slices | n fixes>, tests green"`.
+Normal mode, before finishing: list slices whose `red=` is `none` or `0` in `$TASK_DIR/artifacts/tdd-flags.md` (one line each: slice, sha, subject). Flag only; do not redo them. For the retro. Skip the file if none.
+
+Finish: `bash $ROOT/scripts/worker-done.sh $TASK $KEY done "<n slices | n fixes>, tests green[, n slices tdd-flagged]"`.

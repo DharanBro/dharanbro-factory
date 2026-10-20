@@ -4,7 +4,7 @@ End-to-end dev pipeline: Jira key or plain-text idea -> research -> plan -> auto
 
 ## Rules (all sessions, leads and workers)
 - Self-contained: never read or edit anything outside this folder, except the repo checkouts under `repos/` and `tasks/` Sole exception: `scripts/usage.sh` (never a worker) reads the agents' own session logs in `~/.claude/projects` and `~/.codex/sessions` to total token usage.
-- Handoff is via files in `tasks/<id>/`. Workers write detail to files, finish with `scripts/worker-done.sh`, and keep chat terse. The lead reads only `state.json` and `work/*.json` (<=300 char summaries).
+- Handoff is via files in `tasks/<id>/`. Workers write detail to files, finish with `scripts/worker-done.sh`, and keep chat terse (caveman full: drop articles/filler/pleasantries, fragments OK; code, commits, PR text, and files under `tasks/` stay normal prose). The lead reads only `state.json` and `work/*.json` (<=300 char summaries).
 - Invoke helper scripts as `bash <abs>/scripts/<name>.sh` so permissions match.
 - Read only the files your stage lists as inputs. Prefer grep/targeted reads over whole files.
 - Commits: Conventional Commits, Jira id (or idea slug) as scope, e.g. `feat(DP-1234): add status filter`. Never force-push; never push to the base branch.
