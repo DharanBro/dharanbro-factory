@@ -45,3 +45,7 @@ tasks/<id>/  state.json input.md research/ plan.md plan-review.md decisions.md w
 
 ## Local SonarQube
 `bash scripts/sonar-sync.sh` starts the `factory-sonar` container (http://localhost:9100) and mirrors the org gate + quality profiles for every repo with a `sonar:` block in `repos.yml` (needs `sonar auth login` for the org server). `ci_check` then runs `scripts/sonar-scan.sh <task> <repo>`: one Sonar project per task, base analysis back-dated to the merge-base so the gate judges only the branch's changes. Task projects and scan dirs older than 7 days (`SONAR_KEEP_DAYS`) are deleted on every scan, or run `bash scripts/sonar-scan.sh prune`. The embedded-DB banner in the UI is expected: the server is disposable, so re-run `sonar-sync.sh` after wiping the `factory-sonar-*` volumes.
+
+## Token usage
+
+`run-stage.sh` stamps each worker prompt with `RUN=<uuid>`; after the worker exits, `scripts/usage.sh` finds that session's Claude or Codex log by the marker and writes `tasks/<id>/work/<key>.usage.json` (input / cached / cache_write / output / total). Claude subagent logs are included. Report per task, lead included: `bash scripts/usage.sh report <id>`. Not counted: an inline lead (the session you typed in) and any final reply a worker emits after its tab is closed.
