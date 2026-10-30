@@ -32,6 +32,12 @@ Loop: `s=$(state.sh $T next)`; run the stage below; on success `state.sh $T set 
 
 Done: notify user. Next steps for them: review the draft PRs, mark ready, run `/factory-review <id>` (CodeRabbit loop; CodeRabbit skips drafts).
 
+## Merging (`pr_mode: merge` only)
+`plan-meta.sh $T`.pr_mode is `draft` unless the grill set `merge` (logged in decisions.md). In draft mode you never merge. In merge mode you merge a PR (`gh pr merge <n> --repo <o/r>` in the repo's usual style, e.g. `--squash`) only when both hold:
+- GitHub allows it: approved per branch protection, every required check green (`pr-watch.sh` says `review=APPROVED checks=GREEN`), mergeable;
+- the plan's approver for that repo (decisions.md) has approved, and anyone in `artifacts/approvals-<repo>.md` "Needs approval from" has too.
+Never approve your own PR or ask a bot to; if an approval is missing, tell the user who must give it.
+
 ## Waiting (PRs, CI, repos, publishes, long stages)
 Every wait goes through `scripts/pr-watch.sh`; never `sleep`, never ask the user to tell you when something happened.
 - PRs and their CI: `pr-watch.sh <owner/repo#n>...`. A new repo: `--repo <owner/name>`. A package publish: `--npm <pkg@ver>...` (run it from the repo dir so its `.npmrc` picks the registry). A worker file: `--file <path>`. One line per state change; exit 0 when done, 3 at the 2 h cap (a cap hit is reported to the user).

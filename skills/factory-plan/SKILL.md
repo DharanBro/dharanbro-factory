@@ -13,6 +13,7 @@ Write `$TASK_DIR/plan.md` exactly in this shape:
 ---
 task: <id>
 locked: false
+pr_mode: draft     # draft | merge. Always draft here; only the grill sets merge (logged in decisions.md)
 repos:
   - {name: <repo>, type: <frontend|backend|library>, wave: <1..n>, ui: <true|false>}   # wave n+1 depends on wave n; ui:false = no browser-visible change (docs/config only) -> UI test skipped
 ---

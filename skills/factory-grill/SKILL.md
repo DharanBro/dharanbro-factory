@@ -18,4 +18,6 @@ Probe beyond the listed questions: data/edge cases, error paths, permissions, ro
 
 User says "enough"/"go with defaults": list each remaining open item under `## Assumptions` in decisions.md using its recommended answer, tick them, continue.
 
+`pr_mode` in the front matter stays `draft` unless the user explicitly wants the PRs taken to merge in this run (e.g. a later wave needs an earlier wave merged). Only then set `pr_mode: merge`, and log it in decisions.md with who approves which repo's PRs.
+
 Finish: set `locked: true` in the plan front matter, show a short final summary (repos, waves, slice count, key decisions), then `bash $ROOT/scripts/worker-done.sh $TASK $KEY done "plan locked: <n decisions>, <m assumptions>"`.
