@@ -3,7 +3,8 @@ repos.yml
 repos/
 tasks/
 .browser-profile/
-.claude/
+.claude/*
+!.claude/skills
 .DS_Store
 sonar/
 secrets.env

@@ -7,7 +7,6 @@ mkdir -p "$d"/research "$d"/work "$d"/artifacts
   task:$id,
   kind:(if ($id|test("^[A-Z][A-Z0-9]+-[0-9]+$")) then "jira" else "idea" end),
   created:$now,
-  stages:{intake:"pending",research:"pending",plan:"pending",plan_review:"pending",grill:"pending",
-          execute:"pending",ui_test:"pending",code_review:"pending",ci_check:"pending",pr:"pending"},
+  stages:{intake:"pending",research:"pending",plan:"pending",plan_review:"pending",grill:"pending"},
   repos:[], branch:null}' > "$d/state.json"
 echo "$d"

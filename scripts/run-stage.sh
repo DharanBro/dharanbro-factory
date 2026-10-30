@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 # run-stage.sh <task> <skill> <stage> [repo]
 # Run one configured worker and block until it writes tasks/<task>/work/<key>.json.
-# Env: EXTRA="free text appended to prompt" (e.g. "mode=fix report=artifacts/x.md"), TRY=<n> (key suffix -t<n>).
-# Prints one line: "<key> <status> <summary>". Exit 0 = done, 2 = blocked/failed/timeout, 3 = needs human but no Herdr.
+# Env: EXTRA="free text appended to prompt" (e.g. "mode=fix report=artifacts/x.md"), TRY=<n> (key suffix -t<n>),
+#      LABEL=<name> (key instead of <stage>[-<repo>], e.g. pr-w2 or retro; model/effort still come from <stage>).
+# Prints one line: "<key> <status> <summary>". Exit 0 = done, 2 = blocked/failed/timeout, 3 = needs human but no Herdr,
+# 4 = interactive (grill) agent still alive in its tab at the deadline: not a failure, keep waiting for work/<key>.json.
 . "$(dirname "$0")/lib.sh"
 task="${1:?}"; skill="${2:?}"; stage="${3:?}"; repo="${4:-}"
-key="$stage${repo:+-$repo}${TRY:+-t$TRY}"
+key="${LABEL:-$stage${repo:+-$repo}}${TRY:+-t$TRY}"
 td="$ROOT/tasks/$task"; wf="$td/work/$key.json"; mkdir -p "$td/work"
 C=$(conf "$task"); R=$(runner "$task")
 cfg() { jq -r "$1" <<<"$C"; }
@@ -44,6 +46,14 @@ fi
 
 rm -f "$wf"
 tab=""; name=""
+# Close this stage's leftover tabs from earlier attempts that finished, died or were
+# killed (idle/unknown/done). Never touches working or blocked tabs, nor the current one.
+close_stale_tabs() {
+  herdr tab list --workspace "${tab%%:*}" 2>/dev/null |
+    jq -r --arg key "$key" --arg current "$tab" \
+      '.result.tabs[] | select(.label == $key and (.agent_status | IN("idle","unknown","done")) and .tab_id != $current) | .tab_id' 2>/dev/null |
+    while IFS= read -r old_tab; do herdr tab close "$old_tab" >/dev/null 2>&1 || true; done
+}
 if [ "$R" = herdr ]; then
   kind=$(acfg '.agents[$agent].herdr.kind // empty')
   [ -n "$kind" ] || { echo "$key failed agents.$agent.herdr.kind is required"; exit 2; }
@@ -53,18 +63,23 @@ if [ "$R" = herdr ]; then
   focus=--no-focus; [ $interactive = 1 ] && focus=--focus
   t=$(herdr tab create ${ws:+--workspace "$ws"} --cwd "$cwd" --label "$key" $focus)
   pane=$(jq -r .result.root_pane.pane_id <<<"$t"); tab=$(jq -r .result.tab.tab_id <<<"$t")
+  [ "$(cfg '.keep_done_tabs // false')" = true ] || close_stale_tabs
   name=$(norm "$task-$key-$agent-$tab")
   herdr_spawn "$kind" "$name" "$pane" "$prompt" "${args[@]}" || { echo "$key failed agent start"; exit 2; }
   [ $interactive = 1 ] && herdr notification show "$task: grill ready" --body "Answer in tab '$key'" --sound request >/dev/null || true
-  deadline=$(( $(date +%s) + tmo * 60 )); warned=0
+  deadline=$(( $(date +%s) + tmo * 60 )); warned=0; alive=1
   while [ ! -s "$wf" ]; do
+    if ! herdr agent get "$name" >/dev/null 2>&1; then alive=0; sleep 3; break; fi
     [ "$(date +%s)" -gt "$deadline" ] && break
-    if ! herdr agent get "$name" >/dev/null 2>&1; then sleep 3; break; fi
     if [ $warned = 0 ] && herdr agent get "$name" 2>/dev/null | grep -q '"blocked"'; then
       herdr notification show "$task: $key blocked" --body "Worker waits on approval/question. Open tab '$key'." --sound request >/dev/null || true; warned=1
     fi
     sleep 5
   done
+  # A human can take longer than any cap; while the grill's agent lives, it has not failed.
+  if [ $interactive = 1 ] && [ $alive = 1 ] && [ ! -s "$wf" ]; then
+    echo "$key running still open in tab '$key' after $tmo min; wait for $wf (pr-watch.sh --file)"; exit 4
+  fi
 else
   cmd=()
   while IFS= read -r a; do cmd+=("$(agent_arg "$a" "$td" "$cwd" "$model" "$effort")"); done < <(jq -r --arg agent "$agent" --arg stage "$stage" '.stages[$stage].agents[$agent].command[]?' <<<"$C")
@@ -85,11 +100,14 @@ bash "$ROOT/scripts/usage.sh" log "$task" "$key" "$agent" "$run" "$stamp" || tru
 if [ -s "$wf" ]; then
   status=$(jq -r .status "$wf"); summary=$(jq -r .summary "$wf")
 else
-  status=failed; summary="no status file (timeout or worker died; see work/$key.log or open tab)"
+  status=failed; summary="no status file (timeout or worker died; see work/$key.log)"
+  [ "$R" = herdr ] && summary="no status file (timeout or worker died; open tab '$key')"
 fi
 if [ "$R" = herdr ]; then
-  if [ "$status" = done ] && [ "$(cfg '.keep_done_tabs // false')" != true ]; then herdr tab close "$tab" >/dev/null 2>&1 || true
+  if [ "$status" = "done" ] && [ "$(cfg '.keep_done_tabs // false')" != true ]; then
+    close_stale_tabs
+    herdr tab close "$tab" >/dev/null 2>&1 || true
   else herdr notification show "$task: $key $status" --body "$summary" --sound request >/dev/null 2>&1 || true; fi
 fi
 echo "$key $status $summary"
-[ "$status" = done ]
+[ "$status" = "done" ] || exit 2

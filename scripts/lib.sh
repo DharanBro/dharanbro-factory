@@ -84,4 +84,11 @@ herdr_spawn() {
     [ "$(date +%s)" -gt "$deadline" ] && { echo "worker never became ready" >&2; return 1; }
     sleep 4
   done
+  # A long prompt can land in the input box without being submitted, leaving the worker idle
+  # forever. If it is still idle after a few seconds, press Enter (max 3 times).
+  for i in 1 2 3; do
+    sleep 6
+    herdr agent get "$name" 2>/dev/null | grep -q '"idle"' || return 0
+    herdr pane send-keys "$pane" Enter >/dev/null 2>&1 || true
+  done
 }

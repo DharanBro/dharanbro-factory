@@ -1,6 +1,6 @@
 # Factory pipeline configuration. Override per task in tasks/<id>/factory.override.yml.
-runner: auto                 # auto: Herdr inside Herdr, otherwise headless
-agent_override: null         # claude | codex | null; route every stage through one harness
+runner: herdr                # always Herdr tabs (user rule: headed workers only)
+agent_override: claude         # claude | codex | null; route every stage through one harness
 max_parallel_workers: 4
 keep_done_tabs: false        # Herdr only
 
@@ -79,6 +79,11 @@ stages:
       claude: { model: sonnet, effort: medium }
       codex:  { model: gpt-6-sol, effort: medium }
   code_review:
+    default: claude
+    agents:
+      claude: { model: opus, effort: high }
+      codex:  { model: gpt-6-sol, effort: high }
+  debug:
     default: claude
     agents:
       claude: { model: opus, effort: high }

@@ -13,8 +13,9 @@ Write `$TASK_DIR/plan.md` exactly in this shape:
 ---
 task: <id>
 locked: false
+pr_mode: draft     # draft | merge. Always draft here; only the grill sets merge (logged in decisions.md)
 repos:
-  - {name: <repo>, type: <frontend|backend|library>, wave: <1..n>, ui: <true|false>}   # wave n+1 depends on wave n; ui:false = no browser-visible change (docs/config only) -> UI test skipped
+  - {name: <repo>, type: <frontend|backend|library>, wave: <1..n>, ui: <true|false>}   # wave n+1 depends on wave n; ui:false = no browser-visible change (docs/config only) -> UI test skipped; add remote: <owner/name> for a repo this run creates (it has no clone yet)
 ---
 # Plan: <title>
 ## Goal            (3 lines max)
@@ -29,6 +30,6 @@ repos:
 - [ ] <question> -- recommended: <your default answer>
 ```
 
-Rules: small slices, reuse the patterns research found, no speculative scope. Every gap, ambiguity or decision that only a human can make goes in Open questions with a recommended default; do not guess silently. Keep it under ~150 lines.
+Rules: small slices, reuse the patterns research found, no speculative scope. Template repos: a GitHub template repo usually must not run the CI and required checks that repos created from it need: plan to switch them off for the template only (how is defined by the tool that creates repos; cite its README) and keep them on for every repo made from it. Create and fill the template first, then create each repo from it in its own PR. Every gap, ambiguity or decision that only a human can make goes in Open questions with a recommended default; do not guess silently. Keep it under ~150 lines.
 
 Finish: `bash $ROOT/scripts/worker-done.sh $TASK $KEY done "<n repos, m slices, k open questions>"`.
