@@ -2,9 +2,11 @@
 # repo-rules.sh <task> <repo> | --self-test
 # Who must approve this branch's PR, as facts instead of trial and error. Writes artifacts/approvals-<repo>.md:
 #   base branch protection (or "not readable without admin") and rulesets; CODEOWNERS owners matching the diff;
-#   AUTO_APPROVERS*.txt entries; whether the auto-approve workflow's path scopes cover the diff; org secrets the
+#   approver list files (*approvers*.txt); whether approval workflows' path scopes cover the diff; org secrets the
 #   workflows reference. First line: "Needs approval from: ..." (factory-pr copies it into prs.md).
-# CODEOWNERS, AUTO_APPROVERS and the auto-approve workflow are read from origin/<base>: GitHub applies the base's.
+# An approval workflow is one whose file name contains "approv"; its string inputs with "path" in the key are read
+# as path regexes, and inputs naming an approvers file are listed.
+# CODEOWNERS, approver files and approval workflows are read from origin/<base>: GitHub applies the base's.
 # shellcheck disable=SC2016  # the ruby and jq programs are single-quoted on purpose
 . "$(dirname "$0")/lib.sh"
 
@@ -32,22 +34,22 @@ analyze() {
     else
       out << "## CODEOWNERS matching the diff" << "- no CODEOWNERS file on the base branch"
     end
-    out << "" << "## Auto-approve path scopes (base workflows)"
+    out << "" << "## Approval workflow path scopes (base workflows)"
     walk = lambda { |o, &b| o.is_a?(Hash) ? o.each { |k, v| b.(k, v); walk.(v, &b) } : o.is_a?(Array) ? o.each { |v| walk.(v, &b) } : nil }
     auto = []
-    Dir.glob(File.join(ARGV[2], "*.y{a,}ml")).sort.each do |f|
+    Dir.glob(File.join(ARGV[2], "*approv*.y{a,}ml"), File::FNM_CASEFOLD).sort.each do |f|
       walk.(YAML.safe_load(File.read(f), aliases: true) || {}) do |k, v|
         next unless k.is_a?(String) && v.is_a?(String)
-        if k =~ /(paths?-match|restrict-to-paths)$/
-          re = Regexp.new(v); miss = diff.reject { |d| re.match?(d) }
+        if k =~ /approvers?[-_]?file/i
+          out << "- #{File.basename(f)} `#{k}`: #{v}"
+        elsif k =~ /path/i
+          re = (Regexp.new(v) rescue next); miss = diff.reject { |d| re.match?(d) }
           auto << k if miss.empty? && !diff.empty?
           out << "- #{File.basename(f)} `#{k}`: " + (miss.empty? ? "covers all #{diff.size} file(s)" : "does not cover #{miss.size}/#{diff.size} (#{miss.first(5).join(", ")})")
-        elsif k =~ /approvers-file$/
-          out << "- #{File.basename(f)} `#{k}`: #{v}"
         end
       end
     end
-    out << "- none found" if out.last.start_with?("## Auto")
+    out << "- none found" if out.last.start_with?("## Approval")
     secrets = Dir.glob(File.join(ARGV[3], "*.y{a,}ml")).flat_map { |f| File.read(f).scan(/secrets\.([A-Za-z_][A-Za-z0-9_]*)/).flatten }.uniq.sort - ["GITHUB_TOKEN"]
     out << "" << "## Secrets referenced by workflows (check visibility for new repos)"
     out << (secrets.empty? ? "- none" : "- #{secrets.join(", ")}: org secrets must be visible to this repo; a new repo is often not on their allow-list")
@@ -59,36 +61,36 @@ analyze() {
 self_test() {
   local d fail=0 got
   d=$(mktemp -d); mkdir -p "$d/base" "$d/branch"
-  printf '%s\n' internal/k8s/a.yaml internal/k8s/b.yaml docs/x.md .github/workflows/ci.yml > "$d/diff"
-  printf '%s\n' '* @org/all' '/internal/ @org/infra' 'docs/ @org/docs' '*.md @org/writers' > "$d/CODEOWNERS"
+  printf '%s\n' infra/a.yaml infra/b.yaml docs/x.md .github/workflows/ci.yml > "$d/diff"
+  printf '%s\n' '* @org/all' '/infra/ @org/infra' 'docs/ @org/docs' '*.md @org/writers' > "$d/CODEOWNERS"
   cat > "$d/base/auto-approve.yml" <<'EOF'
 on: pull_request_target
 jobs:
   call:
     with:
-      approve-any-when-all-paths-match: '(^|/)internal/k8s/'
-      path-approvers-file: .github/K8S_AUTO_APPROVERS.txt
+      paths-regex: '(^|/)infra/'
+      approvers-file: .github/APPROVERS.txt
 EOF
   printf 'jobs:\n  a:\n    steps:\n      - run: echo ${{ secrets.NPM_TOKEN }} ${{ secrets.GITHUB_TOKEN }}\n' > "$d/branch/ci.yml"
   got=$(analyze "$d/diff" "$d/CODEOWNERS" "$d/base" "$d/branch")
   want='owners: @org/infra @org/writers @org/all
 auto: does not cover the diff
 ## CODEOWNERS matching the diff
-- @org/infra: 2 file(s) (internal/k8s/a.yaml, internal/k8s/b.yaml)
+- @org/infra: 2 file(s) (infra/a.yaml, infra/b.yaml)
 - @org/writers: 1 file(s) (docs/x.md)
 - @org/all: 1 file(s) (.github/workflows/ci.yml)
 
-## Auto-approve path scopes (base workflows)
-- auto-approve.yml `approve-any-when-all-paths-match`: does not cover 2/4 (docs/x.md, .github/workflows/ci.yml)
-- auto-approve.yml `path-approvers-file`: .github/K8S_AUTO_APPROVERS.txt
+## Approval workflow path scopes (base workflows)
+- auto-approve.yml `paths-regex`: does not cover 2/4 (docs/x.md, .github/workflows/ci.yml)
+- auto-approve.yml `approvers-file`: .github/APPROVERS.txt
 
 ## Secrets referenced by workflows (check visibility for new repos)
 - NPM_TOKEN: org secrets must be visible to this repo; a new repo is often not on their allow-list'
   if [ "$got" = "$want" ]; then echo "ok   analyze"; else printf 'FAIL analyze\n--- got\n%s\n--- want\n%s\n' "$got" "$want"; fail=1; fi
-  printf '%s\n' internal/k8s/a.yaml > "$d/diff"
+  printf '%s\n' infra/a.yaml > "$d/diff"
   got=$(analyze "$d/diff" "" "$d/base" "$d/branch" | sed -n '1,2p;4p')
   want='owners:
-auto: covers the whole diff via approve-any-when-all-paths-match
+auto: covers the whole diff via paths-regex
 - no CODEOWNERS file on the base branch'
   if [ "$got" = "$want" ]; then echo "ok   auto-covers"; else printf 'FAIL auto-covers\n--- got\n%s\n--- want\n%s\n' "$got" "$want"; fail=1; fi
   rm -rf "$d"; return $fail
@@ -135,8 +137,8 @@ reviews=""; codeowner=""
     echo "- rulesets not readable ($(tail -n1 <<<"$r" | cut -c1-120))"
   fi
   echo; tail -n +3 "$tmp/an"
-  echo; echo "## AUTO_APPROVERS entries (origin/$base)"
-  files=$(git -C "$wt" ls-tree -r --name-only "origin/$base" | grep -E '(^|/)[A-Z0-9_]*AUTO_APPROVERS\.txt$' || true)
+  echo; echo "## Approver list files (origin/$base)"
+  files=$(git -C "$wt" ls-tree -r --name-only "origin/$base" | grep -iE '(^|/)[^/]*approvers[^/]*\.txt$' || true)
   if [ -z "$files" ]; then echo "- none"; else
     while IFS= read -r f; do echo "- \`$f\`: $(git -C "$wt" show "origin/$base:$f" | grep -v '^\s*#' | grep . | paste -sd ' ' -)"; done <<<"$files"
   fi

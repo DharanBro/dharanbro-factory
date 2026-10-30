@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # pr-watch.sh <owner/repo#n>...      one line per PR state change; exit 0 when every PR is MERGED or CLOSED
-# pr-watch.sh --repo <owner/name>    exit 0 once the repo exists (e.g. created by a registry PR)
+# pr-watch.sh --repo <owner/name>    exit 0 once the repo exists (e.g. created by another PR)
 # pr-watch.sh --file <path>          exit 0 once the file exists and is non-empty (e.g. work/grill.json)
 # pr-watch.sh --npm <pkg@ver>...     exit 0 once every version is published (run from the repo dir: its .npmrc picks the registry)
 # pr-watch.sh --self-test            offline checks of the classifier and the loop
