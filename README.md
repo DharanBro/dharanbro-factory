@@ -3,12 +3,24 @@
 Jira key or idea in, draft PRs out. One folder per task, worktrees only for repos that change, a fresh short-lived worker per stage, handoff through files (that is where the token savings come from).
 
 ## Setup (once)
-1. Needs: `git`, `gh` (logged in), `jq`, `ruby`, the CLIs selected by your stages in `factory.yml`, and Node (for browser tests). Herdr is optional.
-2. Follow `skills/factory-add-repo/SKILL.md` for each repo. It writes `repos.yml` (gitignored) and clones into `repos/`. See `repos.example.yml` for every field.
-3. Frontend repos: keep a UI-testing doc inside the repo (how to run it + log in; path goes in `ui_test_doc`).
-4. First UI test behind Auth0: `bash scripts/ui-login.sh <dev_url>`, log in once in the visible window, close it. The factory's own profile (`.browser-profile/`) keeps the session; later runs are headless.
-5. Configure each harness under top-level `agents:`. Under each stage, set `default` to the normal harness and define its `agents:` profiles with `model` and `effort`. The example uses Claude for planning and Codex for implementation. Headless workers use the selected harness's command and prompt delivery; Herdr starts its configured `kind` with that stage's profile. CLI arguments may contain `{root}`, `{task_dir}`, `{cwd}`, `{model}`, and `{effort}`. Startup dialogs require a user response.
-6. Configure Jira access for the intake/PR harness and browser tools for the UI-test harness. UI-test workers need Playwright connected to the factory's `.browser-profile/` Chrome profile. The factory writes `tasks/<id>/work/ui-mcp.json` and exports `FACTORY_UI_MCP_CONFIG`; use a stage-specific `stages.ui_test.agents.<agent>.command` wrapper or your agent's MCP settings to load it. Tune stage mappings and caps in `factory.yml` (per task: `tasks/<id>/factory.override.yml`).
+1. Needs: `git`, `gh` (logged in), `jq`, `ruby`, `curl`, `python3`, the CLIs selected by your stages in `factory.yml`, and Node (for browser tests).
+2. Recommended: [Herdr](https://herdr.dev/#install). Install or update on macOS/Linux with `curl -fsSL https://herdr.dev/install.sh | sh` (installs to `~/.local/bin`; other methods: https://herdr.dev/docs/install/). Start the factory from a Herdr pane: each task gets its own workspace and every worker its own tab, so you can watch or step into any stage. Without Herdr, workers run headless in the background (`runner: auto` picks Herdr whenever you are inside it).
+3. [Headroom](https://docs.headroomlabs.ai) (context compression proxy, cuts token usage): `pipx install "headroom-ai[proxy]"`, then `headroom init -g claude` and `headroom init -g codex` so every agent launch, workers included, routes through it. A shell alias like `claude='headroom wrap claude'` only covers your own sessions; the factory starts workers without your shell aliases. Check with `headroom doctor`; update with `headroom update`.
+4. Claude plugins the skills rely on: `playwright` (UI tests), `ponytail` (execute), `caveman` (worker chat). Install at user scope: workers run inside other repos' worktrees, so this folder's project settings do not reach them.
+   ```
+   claude plugin marketplace add DietrichGebert/ponytail
+   claude plugin marketplace add juliusbrussee/caveman
+   claude plugin install playwright@claude-plugins-official
+   claude plugin install ponytail@ponytail
+   claude plugin install caveman@caveman
+   ```
+5. Copy `secrets.env.example` to `secrets.env`, `chmod 600 secrets.env`, and fill in the Jira and CircleCI tokens.
+6. Follow `skills/factory-add-repo/SKILL.md` for each repo. It writes `repos.yml` (gitignored) and clones into `repos/`. See `repos.example.yml` for every field.
+7. Frontend repos: keep a UI-testing doc inside the repo (how to run it + log in; path goes in `ui_test_doc`).
+8. First UI test behind Auth0: `bash scripts/ui-login.sh <dev_url>`, log in once in the visible window, close it. The factory's own profile (`.browser-profile/`) keeps the session; later runs are headless.
+9. Configure each harness under top-level `agents:`. Under each stage, set `default` to the normal harness and define its `agents:` profiles with `model` and `effort`. The example uses Claude for planning and Codex for implementation. Headless workers use the selected harness's command and prompt delivery; Herdr starts its configured `kind` with that stage's profile. CLI arguments may contain `{root}`, `{task_dir}`, `{cwd}`, `{model}`, and `{effort}`. Startup dialogs require a user response.
+10. Configure Jira access for the intake/PR harness and browser tools for the UI-test harness. UI-test workers need Playwright connected to the factory's `.browser-profile/` Chrome profile. The factory writes `tasks/<id>/work/ui-mcp.json` and exports `FACTORY_UI_MCP_CONFIG`; use a stage-specific `stages.ui_test.agents.<agent>.command` wrapper or your agent's MCP settings to load it. Tune stage mappings and caps in `factory.yml` (per task: `tasks/<id>/factory.override.yml`).
+11. Run `bash scripts/doctor.sh` and fix anything marked MISSING.
 
 Stage profiles are keyed by harness, for example:
 
@@ -31,7 +43,7 @@ Follow skills/factory/SKILL.md with DP-1234
 Follow skills/factory/SKILL.md with DP-1234 --from plan
 Follow skills/factory-review/SKILL.md with DP-1234
 ```
-In Herdr: one workspace per task (label = task id), a lead tab, one tab per worker. Outside Herdr: the caller acts as lead, configured headless workers run each stage, and the grill runs in the caller's session. Both modes use the same state and worker-result files.
+In Herdr: one workspace per task (label = task id), one tab per worker. Launched from a Herdr pane, the factory reuses that workspace: renames it to the task id, exits the calling session, and starts the lead fresh in the same pane (log: `work/lead-launch.log`). Outside Herdr: the caller acts as lead, configured headless workers run each stage, and the grill runs in the caller's session. Both modes use the same state and worker-result files.
 
 ## Pipeline
 `intake` -> `research` (per repo, parallel) -> `plan` -> `plan_review` -> **`grill` (you, deep)** -> worktrees -> `execute` (per repo, in dependency waves, TDD) -> `ui_test` (frontend repos) -> `code_review` -> `ci_check` (repo's CI + local SonarQube gate reproduced, must be green) -> `pr` (draft, cross-linked, Jira comment) -> *you mark ready* -> `factory-review`.

@@ -44,6 +44,14 @@ fi
 
 rm -f "$wf"
 tab=""; name=""
+# Close this stage's leftover tabs from earlier attempts that finished, died or were
+# killed (idle/unknown/done). Never touches working or blocked tabs, nor the current one.
+close_stale_tabs() {
+  herdr tab list --workspace "${tab%%:*}" 2>/dev/null |
+    jq -r --arg key "$key" --arg current "$tab" \
+      '.result.tabs[] | select(.label == $key and (.agent_status | IN("idle","unknown","done")) and .tab_id != $current) | .tab_id' 2>/dev/null |
+    while IFS= read -r old_tab; do herdr tab close "$old_tab" >/dev/null 2>&1 || true; done
+}
 if [ "$R" = herdr ]; then
   kind=$(acfg '.agents[$agent].herdr.kind // empty')
   [ -n "$kind" ] || { echo "$key failed agents.$agent.herdr.kind is required"; exit 2; }
@@ -53,6 +61,7 @@ if [ "$R" = herdr ]; then
   focus=--no-focus; [ $interactive = 1 ] && focus=--focus
   t=$(herdr tab create ${ws:+--workspace "$ws"} --cwd "$cwd" --label "$key" $focus)
   pane=$(jq -r .result.root_pane.pane_id <<<"$t"); tab=$(jq -r .result.tab.tab_id <<<"$t")
+  [ "$(cfg '.keep_done_tabs // false')" = true ] || close_stale_tabs
   name=$(norm "$task-$key-$agent-$tab")
   herdr_spawn "$kind" "$name" "$pane" "$prompt" "${args[@]}" || { echo "$key failed agent start"; exit 2; }
   [ $interactive = 1 ] && herdr notification show "$task: grill ready" --body "Answer in tab '$key'" --sound request >/dev/null || true
@@ -88,7 +97,9 @@ else
   status=failed; summary="no status file (timeout or worker died; see work/$key.log or open tab)"
 fi
 if [ "$R" = herdr ]; then
-  if [ "$status" = done ] && [ "$(cfg '.keep_done_tabs // false')" != true ]; then herdr tab close "$tab" >/dev/null 2>&1 || true
+  if [ "$status" = done ] && [ "$(cfg '.keep_done_tabs // false')" != true ]; then
+    close_stale_tabs
+    herdr tab close "$tab" >/dev/null 2>&1 || true
   else herdr notification show "$task: $key $status" --body "$summary" --sound request >/dev/null 2>&1 || true; fi
 fi
 echo "$key $status $summary"

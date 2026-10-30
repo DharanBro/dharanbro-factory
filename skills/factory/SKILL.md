@@ -9,7 +9,7 @@ description: Run the end-to-end dev pipeline for a Jira key or a plain-text idea
 1. Task id: arg matches `^[A-Z][A-Z0-9]+-[0-9]+$` -> that key (`kind=jira`). Existing `tasks/<arg>` -> resume it. Otherwise an idea: `idea-<3-5 word kebab slug>`.
 2. `task-init.sh <id>`. Idea: write the user's raw text to `tasks/<id>/input.md`. Jira: write `Jira: <KEY>` to it. If `--from <stage>`: `state.sh <id> reset <stage>`.
 3. `launch-lead.sh <id>`:
-   - `LAUNCHED`/`FOCUSED`: reply in ONE line ("<id> running in Herdr workspace <id>, grill will notify you") and stop.
+   - `LAUNCHED`/`FOCUSED`: reply in ONE line ("<id> lead starting in this workspace (renamed <id>); this session exits when the turn ends, grill will notify you") and stop. Do not run more tools after it.
    - `INLINE`: you are the lead: continue with Mode B in this session.
 
 ## Mode B: LEAD
@@ -31,5 +31,14 @@ Loop: `s=$(state.sh $T next)`; run the stage below; on success `state.sh $T set 
 | pr | `run-stage.sh $T factory-pr pr` (single worker: all repos, cross-linked draft PRs, Jira comment). Then print the table from `artifacts/prs.md` and the path `artifacts/testing-evidence.html` |
 
 Done: notify user. Next steps for them: review the draft PRs, mark ready, run `/factory-review <id>` (CodeRabbit loop; CodeRabbit skips drafts).
+
+## After the user says an upstream PR is merged (package repo with changesets)
+Standing authorization from the user (DP-7626): when they say a PR in a published package repo (e.g. encore-ui-toolkit) is merged, run this without asking again. It covers approving and squash-merging that repo's bot release PR only, never feature PRs.
+1. Find the release PR: `gh pr list --repo <org/repo> --state open --head changeset-release/master` (title `<KEY>: release packages`, author `app/github-actions`). Not there yet -> Monitor until it appears (the "Create Release Pull Request or Publish" run on master creates it).
+2. Check before approving: not draft, `mergeable`, all checks green. Read the new versions from its diff (`gh pr diff`), not from the plan: peer-dependency cascades turn a `minor` changeset into a major bump for dependents (DP-7626: toolkit 24.4.0 -> 25.0.0, entity-detail 28.1.0 -> 29.0.0). Tell the user the final versions; a red check or a surprise beyond that cascade -> STOP and ask.
+3. `gh pr review <n> --approve --body "<what it releases>, approved on behalf of the owner at their request"`, then `gh pr merge <n> --squash`. Repos with a different merge style: copy the style of earlier release commits on master.
+4. Wait for the publish with Monitor (never sleep/poll): loop `npm view @<scope>/<pkg> versions --json` (registry comes from the repo `.npmrc`, usually GitHub Packages) until every released version shows. Time out at 30 min, report, ask.
+5. Unblock the dependent PRs (those red on `Install Dependencies`/`catalog-check` for the unpublished version): per repo in its worktree, merge the base, set the dependency ranges to the published versions, regenerate the lockfile against the registry (no `file:` refs, overrides or tarball lockfile), run the repo gates, push via a `factory-execute` fix worker, then watch CI with Monitor. Code changes also need the UI check first (`factory-ui-test`); a lockfile-only change does not. Then refresh the PR descriptions that mention "unreleased"/"blocked on".
+6. Report in 2-3 lines: versions released, which PRs are green, what still needs the user (approval/merge of the dependent PRs; you never merge those).
 
 Resume by following this playbook with the same task id: `state.sh next` picks up the first unfinished stage; finished stages never rerun. Execute resumes per slice from `work/progress-<repo>.txt`.
