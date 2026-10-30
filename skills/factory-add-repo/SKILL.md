@@ -13,3 +13,9 @@ description: Register a repo in the factory (repos.yml, local + gitignored) and 
 6. Also ask: `coderabbit` on for this repo? (default: ask, since it only matters for the post-PR loop).
 7. Sonar (local gate, runs in `ci_check`): project key = `sonar.projectKey` in the clone's `sonar-project.properties` (none -> skip sonar, say so). `coverage_cmd` = the command that writes the lcov file named in that properties file (usually the repo's `test` command if it already runs `--coverage`; else e.g. `pnpm exec vitest run --coverage`).
 8. Save: `bash $ROOT/scripts/repo-set.sh <name> --type ... --desc "..." --install "..." --test "..." ...` (only flags you have values for, incl. `--sonar-key`/`--sonar-coverage-cmd`). Then, if a sonar key was saved, run `bash $ROOT/scripts/sonar-sync.sh <name>` to mirror the org gate + rules into the local factory-sonar (needs Docker and `sonar auth login`; on failure report it and move on, `ci_check` will list sonar as UNVERIFIED). Print the final entry as one line.
+
+## Auto mode (`<owner/name> auto`, used by the factory lead for a repo its run created)
+Same steps, but never ask the user:
+- Step 5: anything you cannot infer stays unset; log each gap as a decision (`## Lead decisions` in `tasks/<id>/decisions.md`).
+- Step 6: `coderabbit` is true if the clone has `.coderabbit.yaml` (or `.yml`), or the repo was created from a template (`gh api repos/<owner>/<name> --jq '.template_repository.name // empty'`) whose `repos.yml` entry has `coderabbit: true`. Otherwise false.
+- Step 8: a failed `sonar-sync.sh` is noted and skipped, as in normal mode.

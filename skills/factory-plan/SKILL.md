@@ -15,7 +15,7 @@ task: <id>
 locked: false
 pr_mode: draft     # draft | merge. Always draft here; only the grill sets merge (logged in decisions.md)
 repos:
-  - {name: <repo>, type: <frontend|backend|library>, wave: <1..n>, ui: <true|false>}   # wave n+1 depends on wave n; ui:false = no browser-visible change (docs/config only) -> UI test skipped
+  - {name: <repo>, type: <frontend|backend|library>, wave: <1..n>, ui: <true|false>}   # wave n+1 depends on wave n; ui:false = no browser-visible change (docs/config only) -> UI test skipped; add remote: <owner/name> for a repo this run creates (it has no clone yet)
 ---
 # Plan: <title>
 ## Goal            (3 lines max)
