@@ -12,6 +12,7 @@ Check, spot-reading code rather than trusting the plan:
 - missed consumers of changed APIs, missed edge cases, contradictions with repo conventions
 - frontend repos: ui_test_doc present, UI scenarios concrete
 - repos that create repos, env branches or infra (repo registries, infra/deployment config): read their README/CLAUDE.md for ordering rules (e.g. a template must exist and have content before repos are created from it; one PR per step) and cite the lines in plan-review.md; a plan that breaks one is a factual error
+- template repos: A GitHub template repo gets no CI and no Sonar required check (`circleci.enabled: false`, `sonarqube_required_check: false`, workflow guards on the repo name). Repos created from it keep both. Register the template first, fill it, then register each client repo from it in its own PR.
 
 Actions:
 1. Factual errors: fix directly in `plan.md` (minimal edits).

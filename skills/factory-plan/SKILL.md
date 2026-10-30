@@ -30,6 +30,6 @@ repos:
 - [ ] <question> -- recommended: <your default answer>
 ```
 
-Rules: small slices, reuse the patterns research found, no speculative scope. Every gap, ambiguity or decision that only a human can make goes in Open questions with a recommended default; do not guess silently. Keep it under ~150 lines.
+Rules: small slices, reuse the patterns research found, no speculative scope. Template repos: A GitHub template repo gets no CI and no Sonar required check (`circleci.enabled: false`, `sonarqube_required_check: false`, workflow guards on the repo name). Repos created from it keep both. Register the template first, fill it, then register each client repo from it in its own PR. Every gap, ambiguity or decision that only a human can make goes in Open questions with a recommended default; do not guess silently. Keep it under ~150 lines.
 
 Finish: `bash $ROOT/scripts/worker-done.sh $TASK $KEY done "<n repos, m slices, k open questions>"`.
