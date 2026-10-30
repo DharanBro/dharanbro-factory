@@ -21,6 +21,17 @@ if command -v claude >/dev/null 2>&1; then
   done
 fi
 
+# Every "Factory worker" skill needs a stage in factory.yml (model, effort): factory-<a-b> -> stage a_b.
+if command -v ruby >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
+  stages=$(conf | jq -r '.stages | keys[]'); missing=""
+  for f in "$ROOT"/skills/*/SKILL.md; do
+    grep -q '^description: Factory worker' "$f" || continue
+    s=$(basename "$(dirname "$f")"); s=${s#factory-}; s=${s//-/_}
+    grep -qx "$s" <<<"$stages" || missing="$missing $s"
+  done
+  if [ -z "$missing" ]; then chk "worker stages" ok; else chk "worker stages" "MISSING in factory.yml:$missing"; fail=1; fi
+fi
+
 if command -v gh >/dev/null 2>&1; then
   if gh auth status >/dev/null 2>&1; then chk "gh auth" ok; else chk "gh auth" "MISSING (gh auth login)"; fail=1; fi
 fi

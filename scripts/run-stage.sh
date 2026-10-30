@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 # run-stage.sh <task> <skill> <stage> [repo]
 # Run one configured worker and block until it writes tasks/<task>/work/<key>.json.
-# Env: EXTRA="free text appended to prompt" (e.g. "mode=fix report=artifacts/x.md"), TRY=<n> (key suffix -t<n>).
+# Env: EXTRA="free text appended to prompt" (e.g. "mode=fix report=artifacts/x.md"), TRY=<n> (key suffix -t<n>),
+#      LABEL=<name> (key instead of <stage>[-<repo>], e.g. pr-w2 or retro; model/effort still come from <stage>).
 # Prints one line: "<key> <status> <summary>". Exit 0 = done, 2 = blocked/failed/timeout, 3 = needs human but no Herdr,
 # 4 = interactive (grill) agent still alive in its tab at the deadline: not a failure, keep waiting for work/<key>.json.
 . "$(dirname "$0")/lib.sh"
 task="${1:?}"; skill="${2:?}"; stage="${3:?}"; repo="${4:-}"
-key="$stage${repo:+-$repo}${TRY:+-t$TRY}"
+key="${LABEL:-$stage${repo:+-$repo}}${TRY:+-t$TRY}"
 td="$ROOT/tasks/$task"; wf="$td/work/$key.json"; mkdir -p "$td/work"
 C=$(conf "$task"); R=$(runner "$task")
 cfg() { jq -r "$1" <<<"$C"; }

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # run-stage.sh with stub herdr/sleep: a grill past its deadline exits 4 while its agent lives, fails (naming the
-# tab) once the agent is gone.
+# tab) once the agent is gone; LABEL replaces the stage-repo part of the key.
 . "$(dirname "$0")/lib.sh"
 R=$(fake_root run-stage.sh); B="$R/bin"; mkdir -p "$B" "$R/skills/factory-grill" "$R/skills/factory-debug" "$R/tasks/t"
 touch "$R/skills/factory-grill/SKILL.md" "$R/skills/factory-debug/SKILL.md" "$R/scripts/usage.sh"
@@ -21,6 +21,8 @@ ok grill-alive "$(st factory-grill grill)" "grill running still open in tab 'gri
 rc=4"
 touch "$B/dead"
 ok grill-dead "$(st factory-grill grill)" "grill failed no status file (timeout or worker died; open tab 'grill')
+rc=2"
+ok label "$(LABEL=retro st factory-debug debug)" "retro failed no status file (timeout or worker died; open tab 'retro')
 rc=2"
 rm -rf "$R"
 finish
