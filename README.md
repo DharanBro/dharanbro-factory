@@ -46,7 +46,7 @@ Follow skills/factory-review/SKILL.md with DP-1234
 In Herdr: one workspace per task (label = task id), one tab per worker. Launched from a Herdr pane, the factory reuses that workspace: renames it to the task id, exits the calling session, and starts the lead fresh in the same pane (log: `work/lead-launch.log`). Outside Herdr: the caller acts as lead, configured headless workers run each stage, and the grill runs in the caller's session. Both modes use the same state and worker-result files.
 
 ## Pipeline
-`intake` -> `research` (per repo, parallel) -> `plan` -> `plan_review` -> **`grill` (you, deep)** -> worktrees -> `execute` (per repo, in dependency waves, TDD) -> `ui_test` (frontend repos) -> `code_review` -> `ci_check` (repo's CI + local SonarQube gate reproduced, must be green) -> `pr` (draft, cross-linked, Jira comment) -> *you mark ready* -> `factory-review`.
+`intake` -> `research` (per repo, parallel) -> `plan` -> `plan_review` -> **`grill` (you, deep)** -> then per dependency wave: worktrees -> `execute` (per repo, TDD) -> `ui_test` (frontend repos) -> `code_review` -> `ci_check` (repo's CI + local SonarQube gate reproduced, must be green) -> `pr` (draft unless the plan sets `pr_mode: merge`; cross-linked, Jira comment) -> in merge mode, watch until the wave is merged -> next wave. Draft mode ends with *you mark ready* -> `factory-review`. Wave progress comes from `state.sh <id> wave-next`.
 
 ## Layout
 ```

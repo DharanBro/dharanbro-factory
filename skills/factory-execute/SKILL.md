@@ -21,7 +21,7 @@ All modes: after any install (step 1 on resume, fix mode, coderabbit mode), re-a
 7. At the end run the full test + lint + typecheck once. Reuse existing helpers; add nothing the plan does not ask for.
 
 ## mode fix (`EXTRA` has `mode=fix report=<path>`)
-Read only that report (relative to `$TASK_DIR`). Fix the root cause of each failure with a regression test where feasible, commit `fix(<ID>): ...`. Do not widen scope.
+Read only that report (relative to `$TASK_DIR`). Fix the root cause of each failure with a regression test where feasible, commit `fix(<ID>): ...`. Do not widen scope. If the branch already has an open PR (`gh pr list --head <branch> --json number`), `git push` at the end (plain push, never force).
 
 ## mode coderabbit (`EXTRA` has `mode=coderabbit comments=<path> pr=<n>`)
 For each comment in the file: if valid, fix it (commit `fix(<ID>): address review ...`). If already handled by existing code or you disagree with reason, reply on the thread instead: `gh api repos/<owner>/<repo>/pulls/<pr>/comments/<comment id>/replies -f body="@coderabbitai <where/how it is handled>"`. Push once at the end: `git push`.
