@@ -104,10 +104,10 @@ else
   [ "$R" = herdr ] && summary="no status file (timeout or worker died; open tab '$key')"
 fi
 if [ "$R" = herdr ]; then
-  if [ "$status" = done ] && [ "$(cfg '.keep_done_tabs // false')" != true ]; then
+  if [ "$status" = "done" ] && [ "$(cfg '.keep_done_tabs // false')" != true ]; then
     close_stale_tabs
     herdr tab close "$tab" >/dev/null 2>&1 || true
   else herdr notification show "$task: $key $status" --body "$summary" --sound request >/dev/null 2>&1 || true; fi
 fi
 echo "$key $status $summary"
-[ "$status" = done ] || exit 2
+[ "$status" = "done" ] || exit 2
