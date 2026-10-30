@@ -2,7 +2,7 @@
 
 DP-8112 was the factory's first multi-wave run in merge mode: 13 repos, 3 of them created during the run, and PRs taken to merge instead of left as drafts. The user had to step in far too often. This file records each intervention, its root cause in the factory, and the proposed fix. Source report (local, gitignored): `tasks/DP-8112/artifacts/retro.md`, written by a read-only `factory-debug` worker and checked against files.
 
-Status: proposals only. Nothing below is implemented yet, except the `debug` stage in `factory.yml`, which is uncommitted.
+Status: implemented (F1 to F11, rows 14b, 15 and 17, plus the template-repo rule). The owner approved F4 and F10 on 2026-10-30. Implementation decisions are logged at the end of this file.
 
 ## Summary
 
@@ -80,3 +80,18 @@ Two fixes change user rules and need the user's decision: F4 (`AGENTS.md` "Draft
 - The `devops-admins` team 404 was taken from the auto-approve job log. No direct `gh api orgs/locus-taxy/teams/devops-admins` call was made.
 - Whether the Monitor schema error and the `sleep` block also happen under the codex harness.
 - Whether F8's CodeRabbit inference matches org defaults for new client repos.
+
+## Implementation decisions (2026-10-30)
+
+Taken by the implementing agent under the owner's instruction to decide when highly confident and log the rationale.
+
+- **`pr-watch.sh` also has `--file` and `--npm`.** F2's exit 4 needs a way to keep waiting for `work/grill.json`, and the brief routes publish waits through the same script. Both are a few lines and reuse the loop and the cap.
+- **Failed or blocked workers exit 2.** `run-stage.sh`'s header always said 2, but it returned 1. Callers only test for non-zero, so nothing depends on 1.
+- **"Fails the same way on base" means the same exit code, after the repo's `install` runs in the base worktree.** Without the install, a fresh worktree fails for missing dependencies and every failure would look pre-existing. If the base worktree cannot be set up, the check stays FAIL, never PRE-EXISTING.
+- **Wave state keys:** the PR worker is `pr-w<n>` (via `LABEL`), and the lead marks a merged wave with `worker-done.sh <id> merge-w<n> done`, so `wave-next` reads only work files. A tried key (`-t<n>`) counts when done; a longer repo name sharing a prefix does not.
+- **Old `state.json` files keep their `execute`..`pr` keys,** and `state.sh next` ignores them, so tasks started before this change resume through `wave-next`. `reset` of a wave step archives work files to `work/stale-<time>/` instead of resetting the pre-wave stages.
+- **Repos the run creates are named in the plan with `remote: <owner/name>`.** F8 needs the owner and name to wait for the repo; nothing else in the plan carried them.
+- **CodeRabbit for an auto-registered repo is off unless** the clone has `.coderabbit.yaml` or its template's `repos.yml` entry has it. The brief asked for no questions in this path.
+- **`repo-rules.sh` reads CODEOWNERS, AUTO_APPROVERS and the auto-approve workflow from `origin/<base>`,** because `pull_request_target` and CODEOWNERS use the base branch's copies. Secrets come from the branch's workflows, since new workflows are what need new secrets. The plan's own approver stays with the lead (decisions.md), not the script.
+- **In merge mode the lead runs the CodeRabbit loop before merging,** since PRs open ready and CodeRabbit reviews them. `factory-execute` fix mode now pushes when the branch already has a PR, so the merge watch can use it for CI failures.
+- **Not changed:** `launch-lead.sh` retry and startup-dialog waits from "Other stop points"; they were not in the brief's scope.
