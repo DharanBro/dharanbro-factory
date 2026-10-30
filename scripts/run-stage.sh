@@ -2,7 +2,8 @@
 # run-stage.sh <task> <skill> <stage> [repo]
 # Run one configured worker and block until it writes tasks/<task>/work/<key>.json.
 # Env: EXTRA="free text appended to prompt" (e.g. "mode=fix report=artifacts/x.md"), TRY=<n> (key suffix -t<n>).
-# Prints one line: "<key> <status> <summary>". Exit 0 = done, 2 = blocked/failed/timeout, 3 = needs human but no Herdr.
+# Prints one line: "<key> <status> <summary>". Exit 0 = done, 2 = blocked/failed/timeout, 3 = needs human but no Herdr,
+# 4 = interactive (grill) agent still alive in its tab at the deadline: not a failure, keep waiting for work/<key>.json.
 . "$(dirname "$0")/lib.sh"
 task="${1:?}"; skill="${2:?}"; stage="${3:?}"; repo="${4:-}"
 key="$stage${repo:+-$repo}${TRY:+-t$TRY}"
@@ -65,15 +66,19 @@ if [ "$R" = herdr ]; then
   name=$(norm "$task-$key-$agent-$tab")
   herdr_spawn "$kind" "$name" "$pane" "$prompt" "${args[@]}" || { echo "$key failed agent start"; exit 2; }
   [ $interactive = 1 ] && herdr notification show "$task: grill ready" --body "Answer in tab '$key'" --sound request >/dev/null || true
-  deadline=$(( $(date +%s) + tmo * 60 )); warned=0
+  deadline=$(( $(date +%s) + tmo * 60 )); warned=0; alive=1
   while [ ! -s "$wf" ]; do
+    if ! herdr agent get "$name" >/dev/null 2>&1; then alive=0; sleep 3; break; fi
     [ "$(date +%s)" -gt "$deadline" ] && break
-    if ! herdr agent get "$name" >/dev/null 2>&1; then sleep 3; break; fi
     if [ $warned = 0 ] && herdr agent get "$name" 2>/dev/null | grep -q '"blocked"'; then
       herdr notification show "$task: $key blocked" --body "Worker waits on approval/question. Open tab '$key'." --sound request >/dev/null || true; warned=1
     fi
     sleep 5
   done
+  # A human can take longer than any cap; while the grill's agent lives, it has not failed.
+  if [ $interactive = 1 ] && [ $alive = 1 ] && [ ! -s "$wf" ]; then
+    echo "$key running still open in tab '$key' after $tmo min; wait for $wf (pr-watch.sh --file)"; exit 4
+  fi
 else
   cmd=()
   while IFS= read -r a; do cmd+=("$(agent_arg "$a" "$td" "$cwd" "$model" "$effort")"); done < <(jq -r --arg agent "$agent" --arg stage "$stage" '.stages[$stage].agents[$agent].command[]?' <<<"$C")
@@ -94,7 +99,8 @@ bash "$ROOT/scripts/usage.sh" log "$task" "$key" "$agent" "$run" "$stamp" || tru
 if [ -s "$wf" ]; then
   status=$(jq -r .status "$wf"); summary=$(jq -r .summary "$wf")
 else
-  status=failed; summary="no status file (timeout or worker died; see work/$key.log or open tab)"
+  status=failed; summary="no status file (timeout or worker died; see work/$key.log)"
+  [ "$R" = herdr ] && summary="no status file (timeout or worker died; open tab '$key')"
 fi
 if [ "$R" = herdr ]; then
   if [ "$status" = done ] && [ "$(cfg '.keep_done_tabs // false')" != true ]; then
@@ -103,4 +109,4 @@ if [ "$R" = herdr ]; then
   else herdr notification show "$task: $key $status" --body "$summary" --sound request >/dev/null 2>&1 || true; fi
 fi
 echo "$key $status $summary"
-[ "$status" = done ]
+[ "$status" = done ] || exit 2
