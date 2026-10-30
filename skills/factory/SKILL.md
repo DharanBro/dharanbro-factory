@@ -15,7 +15,7 @@ description: Run the end-to-end dev pipeline for a Jira key or a plain-text idea
 ## Mode B: LEAD
 Stay tiny. Read ONLY `state.json` (`state.sh <id> get`) and one-line worker results. Never open research/plan/review files except the 2 small reads named below. Workers do the thinking.
 
-Loop: `s=$(state.sh $T next)`; run the stage below; on success `state.sh $T set <s> done`; on failure STOP, tell the user the failing line + `tasks/$T/blocked.md` if present. A stage worker = `run-stage.sh $T <skill> <stage> [repo]` (prints one line, exit 0 = done; `LABEL=<name>` sets its key, `TRY=<n>` adds `-t<n>`). Mark `running` before each stage. When `next` prints `waves`, run `## Wave loop` until `state.sh $T wave-next` prints `complete`.
+Loop: `s=$(state.sh $T next)`; run the stage below; on success `state.sh $T set <s> done`; on `no status file` or `agent start failed` re-run that worker once (next `TRY`); on any other failure, or the same one twice, STOP and tell the user the failing line + `tasks/$T/blocked.md` if present. A stage worker = `run-stage.sh $T <skill> <stage> [repo]` (prints one line, exit 0 = done; `LABEL=<name>` sets its key, `TRY=<n>` adds `-t<n>`). Mark `running` before each stage. When `next` prints `waves`, run `## Wave loop` until `state.sh $T wave-next` prints `complete`.
 
 | stage | what the lead does |
 |---|---|
@@ -40,6 +40,16 @@ Before a wave's `execute` step, prepare each listed repo: no clone at `repos/<re
 | merge | Only listed in `pr_mode: merge`. Repos with `coderabbit` true in `prs.md`: run the `factory-review` loop on their PRs first (they open ready, so CodeRabbit reviews them). Then start a detached `pr-watch.sh <owner/repo#n>...` for the wave's PRs (`## Waiting`) and act on each line: `checks=FAILING(<names>)` -> save the failure (`circleci-failures.sh` or `gh run view <id> --log-failed`) to `artifacts/ci-fail-<repo>-t<n>.md` and run `EXTRA="mode=fix report=artifacts/ci-fail-<repo>-t<n>.md" TRY=<n> run-stage.sh $T factory-execute fix <repo>`, up to `caps.fix_tries`; `review=APPROVED checks=GREEN` -> merge per `## Merging`; approval missing -> tell the user who must give it (from `approvals-<repo>.md` and decisions.md) and keep watching. `ALL MERGED/CLOSED`: any PR closed unmerged -> STOP and tell the user; else `worker-done.sh $T merge-w<wave> done "<n> merged"` |
 
 Done (`complete`): notify the user. Draft mode, next steps for them: review the draft PRs, mark ready, run `/factory-review <id>` (CodeRabbit loop; CodeRabbit skips drafts). Merge mode: list what merged.
+
+## Lead autonomy
+Decide yourself, no question, when the playbook, the locked plan or decisions.md already answers it:
+- next stage/wave, opening PRs for a finished wave, re-running a worker once after `no status file` / `agent start failed`;
+- marking a check UNVERIFIED when ci-run proved it fails identically on the base branch;
+- merging a PR in `pr_mode: merge` once it is approved and every required check is green (`## Merging`);
+- registering a repo the run created (factory-add-repo auto mode, inferred values);
+- waiting: always a background watcher (`## Waiting`), never "tell me when".
+
+Beyond that, decide yourself when highly confident; log each decision with its rationale under `## Lead decisions` in `tasks/<id>/decisions.md` (`- <date>: <decision>. Why: <rationale>.`) and tell the user in one line. Ask (one question, A/B/C, your pick marked) only for: low confidence, product or scope changes, anything that contradicts decisions.md, irreversible prod actions the plan does not list, approvals someone else must give (say who), and cap hits (fix_tries, review rounds, watcher timeout). This narrows the user's "always ask" reply rule for the factory lead only. Hard user rules (e.g. ask before creating Jira tickets) still win.
 
 ## Merging (`pr_mode: merge` only)
 `plan-meta.sh $T`.pr_mode is `draft` unless the grill set `merge` (logged in decisions.md). In draft mode you never merge. In merge mode you merge a PR (`gh pr merge <n> --repo <o/r>` in the repo's usual style, e.g. `--squash`) only when both hold:
