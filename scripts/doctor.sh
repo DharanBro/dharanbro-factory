@@ -13,12 +13,10 @@ if command -v ruby >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
   for c in $(conf | jq -r '(if .agent_override then [.agent_override] else [.stages[].default] | unique end)[] as $a | .agents[$a].headless.command[0]'); do need "$c"; done
 fi
 
-# Claude plugins the skills rely on (README Setup step 4).
+# Claude plugin the workers rely on (README Setup step 4).
 if command -v claude >/dev/null 2>&1; then
-  on=$(claude plugin list --json 2>/dev/null | jq -r '.[] | select(.enabled) | .id' || true)
-  for p in playwright@claude-plugins-official ponytail@ponytail caveman@caveman; do
-    if grep -qx "$p" <<<"$on"; then chk "plugin ${p%%@*}" ok; else chk "plugin ${p%%@*}" "MISSING (README Setup step 4)"; fail=1; fi
-  done
+  if claude plugin list --json 2>/dev/null | jq -e 'any(.[]; .enabled and .id == "ponytail@ponytail")' >/dev/null; then
+    chk "plugin ponytail" ok; else chk "plugin ponytail" "MISSING (README Setup step 4)"; fail=1; fi
 fi
 
 # Every "Factory worker" skill needs a stage in factory.yml (model, effort): factory-<a-b> -> stage a_b.

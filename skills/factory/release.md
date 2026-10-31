@@ -1,0 +1,10 @@
+# After the user says an upstream PR is merged (package repo with changesets)
+
+Standing authorization from the user: when they say a PR in a published package repo (e.g. a shared UI component library) is merged, run this without asking again. It covers approving and squash-merging that repo's bot release PR only, never feature PRs.
+
+1. Find the release PR: `gh pr list --repo <org/repo> --state open --head changeset-release/master` (title `<KEY>: release packages`, author `app/github-actions`). Not there yet -> wait per `## Waiting` in `lead.md` until it appears (the "Create Release Pull Request or Publish" run on master creates it).
+2. Check before approving: not draft, `mergeable`, all checks green. Read the new versions from its diff (`gh pr diff`), not from the plan: peer-dependency cascades turn a `minor` changeset into a major bump for dependents. Tell the user the final versions; a red check or a surprise beyond that cascade -> STOP and ask.
+3. `gh pr review <n> --approve --body "<what it releases>, approved on behalf of the owner at their request"`, then `gh pr merge <n> --squash`. Repos with a different merge style: copy the style of earlier release commits on master.
+4. Wait for the publish: from the repo dir, detached `pr-watch.sh --npm @<scope>/<pkg>@<ver> ...` (the registry comes from the repo `.npmrc`), Monitor tailing its log. On the cap, report and ask.
+5. Unblock the dependent PRs (those whose dependency install or lockfile checks are red because of the unpublished version): per repo in its worktree, merge the base, set the dependency ranges to the published versions, regenerate the lockfile against the registry (no `file:` refs, overrides or tarball lockfile), run the repo gates, push via a `factory-execute` fix worker, then watch CI with `pr-watch.sh`. Code changes also need the UI check first (`factory-ui-test`); a lockfile-only change does not. Then refresh the PR descriptions that mention "unreleased"/"blocked on".
+6. Report in 2-3 lines: versions released, which PRs are green, what still needs the user (approval/merge of the dependent PRs; you never merge those).

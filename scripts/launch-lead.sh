@@ -33,7 +33,8 @@ fi
 
 args=()
 while IFS= read -r a; do args+=("$(agent_arg "$a" "$td" "$ROOT" "$model" "$effort")"); done < <(jq -r --arg agent "$agent" '.agents[$agent].herdr.args[]?, .stages.lead.agents[$agent].herdr_args[]?' <<<"$C")
-prompt="Follow $ROOT/AGENTS.md and $ROOT/skills/factory/SKILL.md in LEAD mode. TASK=$task ROOT=$ROOT TASK_DIR=$td. Resume from state.json; only read state.json + work/*.json summaries."
+# Keep "in LEAD mode. TASK=<id> ": usage.sh finds the lead's session log by it.
+prompt="Follow $ROOT/skills/factory/lead.md in LEAD mode. TASK=$task ROOT=$ROOT TASK_DIR=$td. Resume from state.json."
 if [ -n "${handoff:-}" ]; then
   # Detached: wait for the caller agent to go idle, exit it (pane drops to its shell), start the lead there.
   ( herdr agent wait "$pane" --timeout 600000 >/dev/null 2>&1

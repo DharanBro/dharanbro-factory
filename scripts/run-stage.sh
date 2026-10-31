@@ -32,9 +32,10 @@ fi
 skill_file="$ROOT/skills/$skill/SKILL.md"
 [ -f "$skill_file" ] || { echo "$key failed missing playbook $skill_file"; exit 2; }
 run=$(uuidgen); stamp="$td/work/$key.stamp"; : > "$stamp"   # RUN= marks this worker's session log for usage.sh
-prompt="Follow $ROOT/AGENTS.md and $skill_file exactly. TASK=$task ROOT=$ROOT TASK_DIR=$td REPO=${repo:--} KEY=$key RUN=$run ${EXTRA:+EXTRA=\"$EXTRA\" }Your LAST action must be: bash $ROOT/scripts/worker-done.sh $task $key <done|blocked|failed> \"<one-line summary>\" . Be terse in chat; put detail in files."
+rules="$ROOT/AGENTS.md and "; [ "$cwd" = "$ROOT" ] && rules=""   # sessions in the factory root auto-load AGENTS.md
+prompt="Follow ${rules}$skill_file exactly. TASK=$task ROOT=$ROOT TASK_DIR=$td REPO=${repo:--} KEY=$key RUN=$run ${EXTRA:+EXTRA=\"$EXTRA\" }Your LAST action must be: bash $ROOT/scripts/worker-done.sh $task $key <done|blocked|failed> \"<one-line summary>\" . Be terse in chat; put detail in files."
 
-# Backends may consume this standard Playwright MCP config via their own CLI or wrapper.
+# Standard Playwright MCP config: factory.yml passes it to Claude (stages.ui_test herdr_args); other backends via a wrapper.
 if [ "$stage" = ui_test ]; then
   mkdir -p "$ROOT/.browser-profile"
   chrome=$("$ROOT/scripts/chrome-path.sh") || { echo "$key failed Chrome for Testing unavailable"; exit 2; }
@@ -58,7 +59,8 @@ if [ "$R" = herdr ]; then
   kind=$(acfg '.agents[$agent].herdr.kind // empty')
   [ -n "$kind" ] || { echo "$key failed agents.$agent.herdr.kind is required"; exit 2; }
   args=()
-  while IFS= read -r a; do args+=("$(agent_arg "$a" "$td" "$cwd" "$model" "$effort")"); done < <(jq -r --arg agent "$agent" --arg stage "$stage" '.agents[$agent].herdr.args[]?, .stages[$stage].agents[$agent].herdr_args[]?' <<<"$C")
+  while IFS= read -r a; do args+=("$(agent_arg "$a" "$td" "$cwd" "$model" "$effort")"); done < <(jq -r --arg agent "$agent" --arg stage "$stage" '.agents[$agent].herdr.args[]?,
+    (select(.stages[$stage].agents[$agent].lean == true) | .agents[$agent].herdr.lean_args[]?), .stages[$stage].agents[$agent].herdr_args[]?' <<<"$C")
   ws=$(jq -r '.workspace_id // empty' "$td/work/workspace.json" 2>/dev/null || true); ws="${ws:-${HERDR_WORKSPACE_ID:-}}"
   focus=--no-focus; [ $interactive = 1 ] && focus=--focus
   t=$(herdr tab create ${ws:+--workspace "$ws"} --cwd "$cwd" --label "$key" $focus)
