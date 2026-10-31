@@ -8,3 +8,5 @@ tasks/
 .DS_Store
 sonar/
 secrets.env
+.pnpm-store/
+.serena/
