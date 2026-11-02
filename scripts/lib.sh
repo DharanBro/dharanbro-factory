@@ -32,13 +32,65 @@ norm() {
   printf '%s' "$s"
 }
 
-# runner: herdr | headless (auto uses Herdr only inside Herdr)
+# runner: herdr | hc | headless. herdr and auto follow the app you launch from: a pane of the
+# `herdr` daemon (Herdr UI / TUI) -> herdr, a terminal of the new Herdr app (herdr-core) -> hc.
+# Outside both, herdr stays on the daemon and auto falls back to headless.
 runner() {
   local r; r=$(conf "${1:-}" | jq -r '.runner // "auto"')
-  if [ "$r" = auto ]; then
-    if [ "${HERDR_ENV:-}" = 1 ] && command -v herdr >/dev/null 2>&1; then r=herdr; else r=headless; fi
+  if [ "$r" = auto ] || [ "$r" = herdr ]; then
+    if [ "${HERDR_ENV:-}" = 1 ] && command -v herdr >/dev/null 2>&1; then r=herdr
+    elif [ -n "${HC_TERMINAL_ID:-}" ] && command -v hc >/dev/null 2>&1; then r=hc
+    elif [ "$r" = auto ]; then r=headless; fi
   fi
   echo "$r"
+}
+
+# The new Herdr app's window CLI (spaces, tabs, focus). Not on PATH by default on macOS.
+herdr_app() {
+  local a="${HERDR_APP_BIN:-$(command -v herdr-app 2>/dev/null || true)}"
+  if [ -z "$a" ]; then
+    a=$(mdfind "kMDItemCFBundleIdentifier == 'dev.herdr.app'" 2>/dev/null | head -1); a="${a:+$a/Contents/MacOS/Herdr}"
+  fi
+  [ -n "$a" ] || return 1
+  "$a" "$@"
+}
+
+# notify <runner> <title> <body>: the herdr daemon's notification, else a desktop one.
+notify() {
+  if [ "$1" = herdr ]; then herdr notification show "$2" --body "$3" --sound request >/dev/null 2>&1 || true
+  else osascript -e 'on run a' -e 'display notification (item 2 of a) with title (item 1 of a) sound name "Glass"' -e 'end run' "$2" "$3" >/dev/null 2>&1 || true; fi
+}
+
+# hc terminal state: idle|working|done|blocked|error|starting (no status yet)|finished|gone
+hc_state() { hc get "$1" --json 2>/dev/null | jq -r 'if .state == "live" then .status.state // "starting" else "finished" end' || echo gone; }
+
+# hc_spawn <name> <space> <task> <tab> <cwd> <prompt> <cmd...>: start an agent as an hc terminal that the
+# new Herdr app shows as tab <tab> in <space>, then submit the prompt once it is idle.
+# Startup dialogs remain visible for the user to resolve.
+hc_spawn() {
+  local name="$1" space="$2" task="$3" tab="$4" cwd="$5" prompt="$6" i s tb deadline notified=0; shift 6
+  hc run --bg --name "$name" --no-parent --no-notify --cwd "$cwd" ${space:+--label "herdr.space=$space"} \
+    --label "factory.task=$task" --label "factory.tab=$tab" -- "$@" >/dev/null || { echo "hc run failed" >&2; return 1; }
+  for i in 1 2 3 4 5; do   # the app numbers new tabs; name it after the worker key
+    tb=$(herdr_app ls 2>/dev/null | jq -r --arg n "$name" '.spaces[].tabs[] | select(any(.terminals[]; .name == $n)) | .id' 2>/dev/null || true)
+    [ -n "$tb" ] && { herdr_app "do" tab.rename --id "$tb" --name "$tab" >/dev/null 2>&1 || true; break; }
+    sleep 1
+  done
+  deadline=$(( $(date +%s) + 600 ))
+  until s=$(hc_state "$name"); [ "$s" = idle ] && hc send "$name" "$prompt" >/dev/null 2>&1; do
+    case "$s" in
+      finished|gone) echo "agent exited at startup" >&2; return 1 ;;
+      blocked) [ $notified = 1 ] || { notify hc "Worker blocked at startup" "Open tab '$tab' and answer the dialog"; notified=1; } ;;
+    esac
+    [ "$(date +%s)" -gt "$deadline" ] && { echo "worker never became ready" >&2; return 1; }
+    sleep 2
+  done
+  # Same guard as herdr_spawn: a pasted prompt left unsubmitted keeps the agent idle.
+  for i in 1 2 3; do
+    sleep 6
+    [ "$(hc_state "$name")" = idle ] || return 0
+    hc keys "$name" enter >/dev/null 2>&1 || true
+  done
 }
 
 # Resolve a stage's effective harness and its keyed profile.
@@ -78,9 +130,7 @@ herdr_spawn() {
   done
   deadline=$(( $(date +%s) + 600 ))
   until herdr agent prompt "$name" "$prompt" >/dev/null 2>&1; do
-    if [ $notified = 0 ]; then
-      herdr notification show "Worker blocked at startup" --body "Open tab '$name' and answer the dialog" --sound request >/dev/null 2>&1 || true; notified=1
-    fi
+    [ $notified = 1 ] || { notify herdr "Worker blocked at startup" "Open tab '$name' and answer the dialog"; notified=1; }
     [ "$(date +%s)" -gt "$deadline" ] && { echo "worker never became ready" >&2; return 1; }
     sleep 4
   done

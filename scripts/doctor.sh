@@ -7,18 +7,17 @@ need() { if command -v "$1" >/dev/null 2>&1; then chk "$1" ok; else chk "$1" MIS
 
 for t in git gh jq ruby curl python3 node headroom; do need "$t"; done
 if command -v herdr >/dev/null 2>&1; then chk herdr ok; else chk herdr "missing (recommended: curl -fsSL https://herdr.dev/install.sh | sh; workers run headless)"; fi
+if command -v hc >/dev/null 2>&1; then chk hc ok; else chk hc "missing (only needed to launch from the new Herdr app)"; fi
 
 # Agent CLIs the configured stages launch (agent_override wins over per-stage defaults).
 if command -v ruby >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
   for c in $(conf | jq -r '(if .agent_override then [.agent_override] else [.stages[].default] | unique end)[] as $a | .agents[$a].headless.command[0]'); do need "$c"; done
 fi
 
-# Claude plugins the skills rely on (README Setup step 4).
+# Claude plugin the workers rely on (README Setup step 4).
 if command -v claude >/dev/null 2>&1; then
-  on=$(claude plugin list --json 2>/dev/null | jq -r '.[] | select(.enabled) | .id' || true)
-  for p in playwright@claude-plugins-official ponytail@ponytail caveman@caveman; do
-    if grep -qx "$p" <<<"$on"; then chk "plugin ${p%%@*}" ok; else chk "plugin ${p%%@*}" "MISSING (README Setup step 4)"; fail=1; fi
-  done
+  if claude plugin list --json 2>/dev/null | jq -e 'any(.[]; .enabled and .id == "ponytail@ponytail")' >/dev/null; then
+    chk "plugin ponytail" ok; else chk "plugin ponytail" "MISSING (README Setup step 4)"; fail=1; fi
 fi
 
 # Every "Factory worker" skill needs a stage in factory.yml (model, effort): factory-<a-b> -> stage a_b.

@@ -8,13 +8,23 @@
 . "$(dirname "$0")/lib.sh"
 CLAUDE_LOGS="${CLAUDE_LOGS:-$HOME/.claude/projects}"; CODEX_LOGS="${CODEX_LOGS:-$HOME/.codex/sessions}"
 
-# find_logs <agent> <marker> [newer-than-file]: session logs whose prompt contains the marker
+# first_prompt_has <file> <marker>: the marker is in the session's first prompt. A lead's log also holds worker
+# prompts (Herdr output), so a match anywhere in the file would bill the lead's turns to a worker.
+first_prompt_has() {
+  local p
+  p=$(jq -cn 'first(inputs | select(.type=="user" and (.isMeta|not) and (.message.content|type)=="string") | .message.content)' "$1" 2>/dev/null) || return 1
+  [[ "$p" == *"$2"* ]]
+}
+
+# find_logs <agent> <marker> [newer-than-file]: session logs whose first prompt contains the marker
 find_logs() {
   local dir=$CLAUDE_LOGS f
   [ "$1" = codex ] && dir=$CODEX_LOGS
   [ -d "$dir" ] || return 0
   find "$dir" -name '*.jsonl' -not -path '*/subagents/*' ${3:+-newer "$3"} -print0 | xargs -0 grep -lF -- "$2" 2>/dev/null |
     while IFS= read -r f; do
+      # ponytail: Codex logs still match anywhere; give them a first-prompt check when a Codex lead runs.
+      [ "$1" = claude ] && ! first_prompt_has "$f" "$2" && continue
       echo "$f"
       [ "$1" = claude ] && ls "${f%.jsonl}"/subagents/*.jsonl 2>/dev/null   # subagent usage is logged in separate files
     done || true

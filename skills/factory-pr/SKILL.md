@@ -15,8 +15,6 @@ For each repo in scope (work from its worktree):
    **Existing PR:** if `gh pr list --head <branch> --state open --json number,url,isDraft` returns one, do not create a PR. Push (step 1), then rewrite its body with `gh pr edit --body-file` so every claim matches the branch as it is now: keep the existing structure and sections, update or remove anything the new commits changed, add the Testing and Unverified items above; no appended changelog. Never change its draft/ready state.
 3. When all PRs in scope exist, `gh pr edit` each body to list the sibling PR URLs (this wave's plus any already in `prs.md` from earlier waves).
 4. Update `$TASK_DIR/artifacts/prs.md`: table `repo | PR url | number | branch | base | coderabbit(true/false) | needs approval from` (last column: the first line of `artifacts/approvals-<repo>.md` after "Needs approval from:", or "unknown" if the file is missing). Add or replace the rows for the repos in scope; keep rows of other repos.
-5. Jira task and `jira.comment_on_pr` true: ONE comment on the issue with this run's PR links using the configured Jira integration. No status transitions, no other edits.
+5. Jira task and `jira.comment_on_pr` true: write ONE comment with this run's PR links to a temp file, then `bash $ROOT/scripts/jira.sh comment <KEY> <file>`. No status transitions, no other edits. If it fails, say so in the summary and still finish `done`: the PRs exist.
 
 Finish: `bash $ROOT/scripts/worker-done.sh $TASK $KEY done "<n> <draft|ready> PRs: <urls>"`. Never merge or approve a PR; merging belongs to the lead.
-
-If the Jira integration is unavailable, record the missing access as blocked; do not invent ticket details.

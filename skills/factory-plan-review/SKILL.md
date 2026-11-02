@@ -11,8 +11,7 @@ Check, spot-reading code rather than trusting the plan:
 - slices are vertical, ordered, each leaves tests green; waves/dependencies correct
 - missed consumers of changed APIs, missed edge cases, contradictions with repo conventions
 - frontend repos: ui_test_doc present, UI scenarios concrete
-- repos that create repos, env branches or infra (repo registries, infra/deployment config): read their README/CLAUDE.md for ordering rules (e.g. a template must exist and have content before repos are created from it; one PR per step) and cite the lines in plan-review.md; a plan that breaks one is a factual error
-- template repos: a GitHub template repo usually must not run the CI and required checks that repos created from it need: plan to switch them off for the template only (how is defined by the tool that creates repos; cite its README) and keep them on for every repo made from it. Create and fill the template first, then create each repo from it in its own PR.
+- repos that create repos, env branches or infra (repo registries, infra/deployment config): read their README/CLAUDE.md for ordering rules and cite the lines in plan-review.md; a plan that breaks one is a factual error. Template repos: CI and required checks off for the template only, on for every repo made from it; template created and filled first, then one PR per repo created from it.
 
 Actions:
 1. Factual errors: fix directly in `plan.md` (minimal edits).

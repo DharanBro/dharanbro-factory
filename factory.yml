@@ -1,11 +1,13 @@
 # Factory pipeline configuration. Override per task in tasks/<id>/factory.override.yml.
-runner: herdr                # always Herdr tabs (user rule: headed workers only)
+runner: herdr                # always headed (user rule): new Herdr app terminal -> hc tabs, else herdr daemon tabs
 agent_override: claude         # claude | codex | null; route every stage through one harness
 max_parallel_workers: 4
 keep_done_tabs: false        # Herdr only
 
 # Each harness defines its own CLI and Herdr arguments. The runner expands
 # {root}, {task_dir}, {cwd}, {model}, and {effort} without a shell.
+# Stage profiles with `lean: true` also get the harness's herdr.lean_args.
+# The hc runner (new Herdr app) starts the same herdr.kind + args, plus herdr.hc_args.
 agents:
   claude:
     headless:
@@ -14,6 +16,9 @@ agents:
     herdr:
       kind: claude
       args: [--model, "{model}", --effort, "{effort}", --add-dir, "{root}", --add-dir, "{task_dir}"]
+      # Workers read their skill by path and never used the skill listing, most plugins or MCP servers,
+      # which cost ~20K tokens per turn. Keep a flag after --mcp-config: it swallows the next bare argument.
+      lean_args: [--disable-slash-commands, --settings, "{root}/claude-worker-settings.json", --mcp-config, "{root}/worker-mcp.json", --strict-mcp-config]
   codex:
     headless:
       command: [codex, exec, --full-auto, --model, "{model}", -c, "model_reasoning_effort={effort}", --add-dir, "{root}", --add-dir, "{task_dir}", "-"]
@@ -21,6 +26,7 @@ agents:
     herdr:
       kind: codex
       args: [--model, "{model}", -c, "model_reasoning_effort={effort}", --add-dir, "{root}", --add-dir, "{task_dir}"]
+      hc_args: [--no-daemon]   # hc: otherwise codex runs its commands outside the hc terminal
 
 caps:
   fix_tries: 3
@@ -36,27 +42,28 @@ stages:
   lead:
     default: claude
     agents:
-      claude: { model: sonnet, effort: low }
+      # Team-lead judgment needs Opus. Its default compaction window is 1M; 200k keeps the long-lived chat cheap.
+      claude: { model: opus, effort: high, herdr_args: [--settings, '{"autoCompactWindow":200000}'] }
       codex:  { model: gpt-6-sol, effort: low }
   intake:
     default: claude
     agents:
-      claude: { model: haiku, effort: low }
+      claude: { model: haiku, effort: low, lean: true }
       codex:  { model: gpt-6-sol, effort: low }
   research:
     default: claude
     agents:
-      claude: { model: sonnet, effort: medium }
+      claude: { model: sonnet, effort: medium, lean: true }
       codex:  { model: gpt-6-sol, effort: medium }
   plan:
     default: claude
     agents:
-      claude: { model: opus, effort: high }
+      claude: { model: opus, effort: high, lean: true }
       codex:  { model: gpt-6-sol, effort: high }
   plan_review:
     default: claude
     agents:
-      claude: { model: sonnet, effort: medium }
+      claude: { model: sonnet, effort: medium, lean: true }
       codex:  { model: gpt-6-sol, effort: medium }
   grill:
     default: claude
@@ -66,22 +73,22 @@ stages:
   execute:
     default: codex
     agents:
-      claude: { model: sonnet, effort: medium }
+      claude: { model: sonnet, effort: medium, lean: true }
       codex:  { model: gpt-6-sol, effort: medium }
   fix:
     default: codex
     agents:
-      claude: { model: sonnet, effort: medium }
+      claude: { model: sonnet, effort: medium, lean: true }
       codex:  { model: gpt-6-sol, effort: medium }
   ui_test:
     default: codex
     agents:
-      claude: { model: sonnet, effort: medium }
+      claude: { model: sonnet, effort: medium, lean: true, herdr_args: [--mcp-config, "{task_dir}/work/ui-mcp.json", --strict-mcp-config] }
       codex:  { model: gpt-6-sol, effort: medium }
   code_review:
     default: claude
     agents:
-      claude: { model: opus, effort: high }
+      claude: { model: opus, effort: high, lean: true }
       codex:  { model: gpt-6-sol, effort: high }
   debug:
     default: claude
@@ -91,12 +98,12 @@ stages:
   ci_check:
     default: codex
     agents:
-      claude: { model: sonnet, effort: medium }
+      claude: { model: sonnet, effort: medium, lean: true }
       codex:  { model: gpt-6-sol, effort: medium }
   pr:
     default: claude
     agents:
-      claude: { model: haiku, effort: low }
+      claude: { model: haiku, effort: low, lean: true }
       codex:  { model: gpt-6-sol, effort: low }
 
 git:

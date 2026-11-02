@@ -1,0 +1,13 @@
+{
+  "enabledPlugins": {
+    "playwright@claude-plugins-official": false,
+    "crit@crit": false,
+    "frontend-design@claude-plugins-official": false,
+    "postman@claude-plugins-official": false,
+    "ast-grep@ast-grep-marketplace": false,
+    "slack@claude-plugins-official": false,
+    "mcpmarket-me@mcpmarket-me": false,
+    "flightclaw@flightclaw": false,
+    "fe-skills@locus-factory": false
+  }
+}

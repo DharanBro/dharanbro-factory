@@ -7,9 +7,10 @@ Your cwd is the repo worktree `$TASK_DIR/$REPO`; follow its local instructions. 
 
 Inputs: from `$TASK_DIR/plan.md` read ONLY `## Goal`, `## Acceptance criteria`, and `## Repo: $REPO`; `$TASK_DIR/decisions.md`; this repo's entry in `$ROOT/repos.yml` (install/test/lint/typecheck). `$TASK_DIR/state.json` has the branch.
 
-Ponytail full, all modes: build the least that meets the plan and acceptance criteria. Reuse existing code/stdlib/installed deps before writing new; no speculative abstractions, config, or files. Never drop plan slices, TDD, validation, error handling, or tests to be lazy.
-
-All modes: after any install (step 1 on resume, fix mode, coderabbit mode), re-apply `$TASK_DIR/artifacts/tarball-install-$REPO.md` if present; a plain install fails once an unreleased bump is committed.
+All modes:
+- Build the least that meets the plan and acceptance criteria. Reuse existing code/stdlib/installed deps before writing new; no speculative abstractions, config, or files. Never drop plan slices, TDD, validation, error handling, or tests to be lazy.
+- Unit tests must not be time-sensitive: no real clocks/timers, no sleeps, no tight timeouts, no long loops of UI events (CI is slower than local; a 5s default timeout flaked in DP-6969). Use fake timers or deterministic waits and keep each test small and fast. Never fix flakiness by raising a timeout.
+- After any install (step 1 on resume, fix mode, coderabbit mode), re-apply `$TASK_DIR/artifacts/tarball-install-$REPO.md` if present; a plain install fails once an unreleased bump is committed.
 
 ## mode normal (default)
 1. Install deps if missing (`install` command).
@@ -17,8 +18,7 @@ All modes: after any install (step 1 on resume, fix mode, coderabbit mode), re-a
 3. Resume point: slice numbers already in `$TASK_DIR/work/progress-$REPO.txt` are done; continue with the next. 
 4. Per slice: write the failing test, see it fail, implement, see it pass, run lint + typecheck + the affected tests, then commit: `<type>(<ID>): <subject>` (Conventional Commits; ID = Jira key or idea slug from state.json). Then append `slice N <sha> red=<exit code of the first run of the new test, before the implementation>` to the progress file. If you did not see the test fail first, write `red=none`; never invent a code.
 5. Same failure 3 times in a row (`caps.fix_tries`) -> write `$TASK_DIR/blocked.md` (what, tries, output tail), finish `blocked`.
-6. Unit tests must not be time-sensitive: no real clocks/timers, no sleeps, no tight timeouts, and no long loops of UI events (CI is slower than local; a 5s default timeout flaked in DP-6969). Use fake timers or deterministic waits, and keep each test small and fast. Never fix flakiness by raising a timeout.
-7. At the end run the full test + lint + typecheck once. Reuse existing helpers; add nothing the plan does not ask for.
+6. At the end run the full test + lint + typecheck once.
 
 ## mode fix (`EXTRA` has `mode=fix report=<path>`)
 Read only that report (relative to `$TASK_DIR`). Fix the root cause of each failure with a regression test where feasible, commit `fix(<ID>): ...`. Do not widen scope. If the branch already has an open PR (`gh pr list --head <branch> --json number`), `git push` at the end (plain push, never force).
