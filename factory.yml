@@ -1,5 +1,5 @@
 # Factory pipeline configuration. Override per task in tasks/<id>/factory.override.yml.
-runner: herdr                # always Herdr tabs (user rule: headed workers only)
+runner: herdr                # always headed (user rule): new Herdr app terminal -> hc tabs, else herdr daemon tabs
 agent_override: claude         # claude | codex | null; route every stage through one harness
 max_parallel_workers: 4
 keep_done_tabs: false        # Herdr only
@@ -7,6 +7,7 @@ keep_done_tabs: false        # Herdr only
 # Each harness defines its own CLI and Herdr arguments. The runner expands
 # {root}, {task_dir}, {cwd}, {model}, and {effort} without a shell.
 # Stage profiles with `lean: true` also get the harness's herdr.lean_args.
+# The hc runner (new Herdr app) starts the same herdr.kind + args, plus herdr.hc_args.
 agents:
   claude:
     headless:
@@ -25,6 +26,7 @@ agents:
     herdr:
       kind: codex
       args: [--model, "{model}", -c, "model_reasoning_effort={effort}", --add-dir, "{root}", --add-dir, "{task_dir}"]
+      hc_args: [--no-daemon]   # hc: otherwise codex runs its commands outside the hc terminal
 
 caps:
   fix_tries: 3
