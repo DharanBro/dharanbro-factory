@@ -77,7 +77,7 @@ if [ "$R" != headless ]; then
     name=$(norm "$task-$key-$agent-${run:0:8}")
     [ "$(cfg '.keep_done_tabs // false')" = true ] || close_stale_tabs
     hc_spawn "$name" "$sp" "$task" "$key" "$cwd" "$prompt" "$kind" "${args[@]}" || { echo "$key failed agent start"; exit 2; }
-    [ $interactive = 1 ] && { herdr_app "do" agent.focus --terminal "$name" >/dev/null 2>&1 || true; }
+    [ $interactive = 1 ] && { herdr-app do agent.focus --terminal "$name" >/dev/null 2>&1 || true; }
   else
     ws=$(jq -r '.workspace_id // empty' "$td/work/workspace.json" 2>/dev/null || true); ws="${ws:-${HERDR_WORKSPACE_ID:-}}"
     focus=--no-focus; [ $interactive = 1 ] && focus=--focus
@@ -95,7 +95,10 @@ if [ "$R" != headless ]; then
     if [ $warned = 0 ] && agent_blocked; then
       notify "$R" "$task: $key blocked" "Worker waits on approval/question. Open tab '$key'."; warned=1
     fi
-    sleep 5
+    # hc: while the agent works, block on its own status (`hc wait` ends with its turn; worker-done.sh is its
+    # last step). Idle, blocked or not reporting yet, `hc wait` returns at once, so look again in a few seconds.
+    if [ "$R" = hc ] && [ "$(hc_state "$name")" = working ]; then hc wait "$name" --timeout 60 >/dev/null 2>&1 || true
+    else sleep 5; fi
   done
   # A human can take longer than any cap; while the grill's agent lives, it has not failed.
   if [ $interactive = 1 ] && [ $alive = 1 ] && [ ! -s "$wf" ]; then

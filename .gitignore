@@ -3,6 +3,7 @@ repos.yml
 repos/
 tasks/
 .browser-profile/
+bin/
 .claude/*
 !.claude/skills
 .DS_Store
