@@ -32,17 +32,17 @@ if [ "$R" = hc ]; then
   case "$(hc_state "$lead")" in
     gone) ;;
     finished) hc rm "$lead" >/dev/null 2>&1 || true ;;
-    *) herdr_app "do" agent.focus --terminal "$lead" >/dev/null 2>&1 || true; echo "FOCUSED space $task"; exit 0 ;;
+    *) herdr-app do agent.focus --terminal "$lead" >/dev/null 2>&1 || true; echo "FOCUSED space $task"; exit 0 ;;
   esac
   sp=$(jq -r '.hc_space // empty' "$wsf" 2>/dev/null || true)
-  if [ -z "$sp" ] || ! herdr_app ls 2>/dev/null | jq -e --arg s "$sp" 'any(.spaces[]; .id == $s)' >/dev/null; then
-    n=$(herdr_app "do" space.new --name "$task" --folder "$ROOT") || { echo "Herdr app window not reachable (space.new failed)" >&2; exit 1; }
+  if [ -z "$sp" ] || ! herdr-app ls 2>/dev/null | jq -e --arg s "$sp" 'any(.spaces[]; .id == $s)' >/dev/null; then
+    n=$(herdr-app do space.new --name "$task" --folder "$ROOT") || { echo "Herdr app window not reachable (space.new failed; bin/herdr-app missing? run scripts/init.sh)" >&2; exit 1; }
     sp=$(jq -r .space <<<"$n"); shell=$(jq -r '.terminal // empty' <<<"$n")   # the space's default shell tab
     { cat "$wsf" 2>/dev/null || echo '{}'; } | jq --arg s "$sp" '.hc_space = $s' > "$wsf.tmp" && mv "$wsf.tmp" "$wsf"
   fi
   hc_spawn "$lead" "$sp" "$task" lead "$ROOT" "$prompt" "$kind" "${args[@]}" || exit 1
   [ -n "${shell:-}" ] && { hc kill "$shell" >/dev/null 2>&1 || true; hc rm "$shell" >/dev/null 2>&1 || true; }
-  herdr_app "do" agent.focus --terminal "$lead" >/dev/null 2>&1 || true
+  herdr-app do agent.focus --terminal "$lead" >/dev/null 2>&1 || true
   echo "LAUNCHED space $task"; exit 0
 fi
 

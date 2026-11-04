@@ -3,6 +3,7 @@ repos.yml
 repos/
 tasks/
 .browser-profile/
+bin/
 .claude/*
 !.claude/skills
 .DS_Store
@@ -10,3 +11,4 @@ sonar/
 secrets.env
 .pnpm-store/
 .serena/
+.playwright-mcp/

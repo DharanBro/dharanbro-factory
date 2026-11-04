@@ -17,17 +17,16 @@ case "$1 $2" in
 esac
 exit 0
 EOF
-# hc (new Herdr app) stubs: a terminal is live once run; with "dead", it finishes after its prompt is sent.
+# hc (new Herdr app) stubs: a terminal is live once run with its prompt (the last argument); with "dead", it then finishes.
 cat > "$B/hc" <<'EOF'
 #!/usr/bin/env bash
 D=$(dirname "$0"); cmd=$1; shift
 case "$cmd" in
-  run) printf '%s\n' "$@" > "$D/hc-run-args"; while [ $# -gt 0 ]; do [ "$1" = --name ] && touch "$D/live-$2"; shift; done ;;
+  run) printf '%s\n' "$@" > "$D/hc-run-args"; printf '%s' "${@: -1}" > "$D/prompt"; while [ $# -gt 0 ]; do [ "$1" = --name ] && touch "$D/live-$2"; shift; done ;;
   get) [ -f "$D/live-$1" ] || exit 3
        if [ -f "$D/dead" ] && [ -f "$D/prompt" ]; then echo '{"state":"finished"}'; else echo '{"state":"live","status":{"state":"idle"}}'; fi ;;
-  send) printf '%s' "$2" > "$D/prompt" ;;
   ls) echo '{"terminals":[]}' ;;
-  kill|rm|keys) echo "$cmd $1" >> "$D/hc-calls" ;;
+  kill|rm) echo "$cmd $1" >> "$D/hc-calls" ;;
 esac
 exit 0
 EOF
@@ -42,7 +41,7 @@ EOF
 printf '#!/usr/bin/env bash\n:\n' > "$B/osascript"
 chmod +x "$B"/*
 st() { PATH="$B:$PATH" FACTORY_ROOT="$R" env -u HC_TERMINAL_ID -u HERDR_ENV bash "$R/scripts/run-stage.sh" t "$@" 2>&1; echo "rc=$?"; }
-hst() { PATH="$B:$PATH" FACTORY_ROOT="$R" HC_TERMINAL_ID=t1 HERDR_APP_BIN="$B/herdr-app" env -u HERDR_ENV bash "$R/scripts/run-stage.sh" t "$@" 2>&1; echo "rc=$?"; }
+hst() { PATH="$B:$PATH" FACTORY_ROOT="$R" HC_TERMINAL_ID=t1 env -u HERDR_ENV bash "$R/scripts/run-stage.sh" t "$@" 2>&1; echo "rc=$?"; }
 rn() { PATH="$B:$PATH" FACTORY_ROOT="$R" env -u HC_TERMINAL_ID -u HERDR_ENV "$@" bash -c '. "$FACTORY_ROOT/scripts/lib.sh"; runner t'; }
 ok grill-alive "$(st factory-grill grill)" "grill running still open in tab 'grill' after -1 min; wait for $R/tasks/t/work/grill.json (pr-watch.sh --file)
 rc=4"
@@ -68,6 +67,7 @@ ok hc-grill-alive "$(hst factory-grill grill)" "grill running still open in tab 
 rc=4"
 ok hc-placement "$(grep -cx -e herdr.space=spT -e factory.tab=grill -e factory.task=t -e claude "$B/hc-run-args")" 4
 ok hc-prompt "$(grep -c 'KEY=grill ' "$B/prompt")" 1
+ok hc-prompt-after-dashdash "$(tail -n 2 "$B/hc-run-args" | head -n 1)" --   # claude's --add-dir must not swallow it
 touch "$B/dead"; rm -f "$B/prompt"
 ok hc-dead "$(hst factory-intake intake)" "intake failed no status file (timeout or worker died; open tab 'intake')
 rc=2"
@@ -77,7 +77,7 @@ ok hc-codex-no-daemon "$(grep -cx -e --no-daemon "$B/hc-run-args")" 1
 
 # launch-lead in the new app: a space named after the task, lead tab, default shell tab removed.
 cp "$SRC/scripts/launch-lead.sh" "$R/scripts/"; rm -f "$R/tasks/t/work/workspace.json" "$B/hc-calls"
-ll() { PATH="$B:$PATH" FACTORY_ROOT="$R" HC_TERMINAL_ID=t1 HERDR_APP_BIN="$B/herdr-app" env -u HERDR_ENV bash "$R/scripts/launch-lead.sh" t 2>&1; }
+ll() { PATH="$B:$PATH" FACTORY_ROOT="$R" HC_TERMINAL_ID=t1 env -u HERDR_ENV bash "$R/scripts/launch-lead.sh" t 2>&1; }
 ok hc-lead-guard "$(ll | grep -c 'still running in Herdr UI')" 1   # stub herdr reports the lead alive
 touch "$B/dead"; rm -f "$B/prompt"   # herdr: lead gone; hc: lead finishes after its prompt (enough for launch)
 ok hc-lead "$(ll)" "LAUNCHED space t"
