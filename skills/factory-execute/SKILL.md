@@ -10,6 +10,7 @@ Inputs: from `$TASK_DIR/plan.md` read ONLY `## Goal`, `## Acceptance criteria`, 
 All modes:
 - Build the least that meets the plan and acceptance criteria. Reuse existing code/stdlib/installed deps before writing new; no speculative abstractions, config, or files. Never drop plan slices, TDD, validation, error handling, or tests to be lazy.
 - Unit tests must not be time-sensitive: no real clocks/timers, no sleeps, no tight timeouts, no long loops of UI events (CI is slower than local; a 5s default timeout flaked in DP-6969). Use fake timers or deterministic waits and keep each test small and fast. Never fix flakiness by raising a timeout.
+- UI slices (a slice adds or changes something people see, in an app or a component library): before the first one, read `$ROOT/skills/factory-execute/ui-craft.md` and apply it. Add no new tokens, palettes or fonts, and restyle nothing beyond the plan. The browser check is the ui_test stage's job.
 - After any install (step 1 on resume, fix mode, coderabbit mode), re-apply `$TASK_DIR/artifacts/tarball-install-$REPO.md` if present; a plain install fails once an unreleased bump is committed.
 
 ## mode normal (default)
