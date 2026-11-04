@@ -3,11 +3,12 @@
 #                                acceptance-criteria fields, last 5 comments, linked issues, remote links.
 #                                Jira text stays wiki markup ("# item" = numbered list), fenced so it never reads as a heading.
 # jira.sh comment <KEY> <file>   add the file's text as one comment (Jira wiki markup)
+# jira.sh label <KEY> <label>    add a label, keeping existing ones
 # Jira REST with ATLASSIAN_* from secrets.env, so workers need no Jira MCP. Never prints the token.
 . "$(dirname "$0")/lib.sh"
 : "${ATLASSIAN_API_TOKEN:?set ATLASSIAN_API_TOKEN in secrets.env}" "${ATLASSIAN_DOMAIN:?}" "${ATLASSIAN_EMAIL:?}"
 api() { curl -sSf -u "$ATLASSIAN_EMAIL:$ATLASSIAN_API_TOKEN" -H "Content-Type: application/json" "$@"; }
-cmd="${1:-}"; key="${2:?usage: jira.sh get <KEY> | comment <KEY> <file>}"
+cmd="${1:-}"; key="${2:?usage: jira.sh get <KEY> | comment <KEY> <file> | label <KEY> <label>}"
 url="https://$ATLASSIAN_DOMAIN.atlassian.net/rest/api/2/issue/$key"
 case "$cmd" in
   get)
@@ -24,5 +25,8 @@ case "$cmd" in
   comment)
     f="${3:?file}"; [ -f "$f" ] || { echo "missing $f" >&2; exit 1; }
     jq -n --rawfile b "$f" '{body: $b}' | api -X POST --data @- "$url/comment" | jq -r --arg k "$key" '"commented on \($k) (id \(.id))"' ;;
-  *) echo "usage: jira.sh get <KEY> | comment <KEY> <file>" >&2; exit 1 ;;
+  label)
+    l="${3:?label}"
+    jq -n --arg l "$l" '{update: {labels: [{add: $l}]}}' | api -X PUT --data @- "$url" && echo "labelled $key $l" ;;
+  *) echo "usage: jira.sh get <KEY> | comment <KEY> <file> | label <KEY> <label>" >&2; exit 1 ;;
 esac
