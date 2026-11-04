@@ -11,3 +11,4 @@ sonar/
 secrets.env
 .pnpm-store/
 .serena/
+.playwright-mcp/
