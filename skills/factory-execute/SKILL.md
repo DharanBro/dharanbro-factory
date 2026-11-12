@@ -3,7 +3,7 @@ name: factory-execute
 description: Factory worker. Implement ONE repo's slices from the locked plan with TDD in its worktree; also handles fix mode (failing UI test report) and coderabbit mode (review comments). Launched by the factory lead.
 ---
 
-Your cwd is the repo worktree `$TASK_DIR/$REPO`; follow its local instructions. Touch only this repo (exception: building/packing a sibling worktree for step 2; leave it with no uncommitted changes, `git status` clean, afterwards). Never push (the PR stage does). Never edit plan.md.
+Your cwd is the repo worktree `$TASK_DIR/$REPO`; follow its local instructions. Touch only this repo (exception: building/packing a sibling worktree for step 2; leave it with no uncommitted changes, `git status` clean, afterwards). Never push before the PR exists (the PR stage opens it); once the branch has an open PR (`gh pr list --head <branch> --json number`), every run ends with a plain `git push`, never force. Never edit plan.md.
 
 Inputs: from `$TASK_DIR/plan.md` read ONLY `## Goal`, `## Acceptance criteria`, and `## Repo: $REPO`; `$TASK_DIR/decisions.md`; this repo's entry in `$ROOT/repos.yml` (install/test/lint/typecheck). `$TASK_DIR/state.json` has the branch.
 
@@ -11,6 +11,7 @@ All modes:
 - Build the least that meets the plan and acceptance criteria. Reuse existing code/stdlib/installed deps before writing new; no speculative abstractions, config, or files. Never drop plan slices, TDD, validation, error handling, or tests to be lazy.
 - Unit tests must not be time-sensitive: no real clocks/timers, no sleeps, no tight timeouts, no long loops of UI events (CI is slower than local; a 5s default timeout flaked in DP-6969). Use fake timers or deterministic waits and keep each test small and fast. Never fix flakiness by raising a timeout.
 - UI slices (a slice adds or changes something people see, in an app or a component library): before the first one, read `$ROOT/skills/factory-execute/ui-craft.md` and apply it. Add no new tokens, palettes or fonts, and restyle nothing beyond the plan. The browser check is the ui_test stage's job.
+- Before each commit run `git diff --cached --stat`: unstage generated files (compiled .js/.d.ts next to sources, dist, coverage) and any file the fix did not mean to touch.
 - After any install (step 1 on resume, fix mode, coderabbit mode), re-apply `$TASK_DIR/artifacts/tarball-install-$REPO.md` if present; a plain install fails once an unreleased bump is committed.
 
 ## mode normal (default)
