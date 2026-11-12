@@ -43,7 +43,7 @@ Per repo read `artifacts/test-report-<repo>.md`, `review-<repo>.md` and `ci-chec
 A missing scenario or screenshot -> write a brief naming what to cover and rerun `TRY=<n> EXTRA="brief=<path>" run-stage.sh $T factory-ui-test ui_test <repo>`. A code gap -> `## Fix loop` with a brief, then rerun that repo's ui_test and ci_check (next `TRY`) before the `pr` step.
 
 ## CodeRabbit gate (after each `factory-execute` coderabbit-mode run)
-Check every thread in `artifacts/coderabbit-<repo>-r<n>.md` got a reply naming a commit: `gh api repos/<o>/<r>/pulls/<pr>/comments --paginate` shows a reply per thread. Never trust the worker's "n threads replied". A thread without a reply -> back to a worker with a brief.
+Check every thread in `artifacts/coderabbit-<repo>-r<n>.md` got a reply naming a commit: `gh api repos/<o>/<r>/pulls/<pr>/comments --paginate` shows a reply per thread. Never trust the worker's "n threads replied". A thread without a reply -> back to a worker with a brief. When the brief listed sites (e.g. every async completion), check the diff touches each one (`git show <sha> | grep`) and the summary has `sites checked:`; a missed site goes back to the worker.
 
 ## Fix loop
 Up to `caps.fix_tries` per repo: `EXTRA="mode=fix report=<path>" TRY=<n> run-stage.sh $T factory-execute fix <repo>`. The report is the failing report itself, or a brief you write to `artifacts/brief-<repo>-t<n>.md` when it needs context: what failed, evidence paths, the suspected cause if known, and what "fixed" means. Never put a brief inline in EXTRA. Still failing after the cap -> write `tasks/$T/blocked.md` (repo, tries, last report path) and STOP.
