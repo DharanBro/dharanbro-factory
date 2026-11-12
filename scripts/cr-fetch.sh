@@ -31,7 +31,7 @@ while :; do
   [ "$stalled" -gt 0 ] && break
   done_status=$(jq '[.data.repository.pullRequest.commits.nodes[0].commit.statusCheckRollup.contexts.nodes[]?
              | select((.context // .name // "")|test("coderabbit";"i"))
-             | select((.state // "")|IN("SUCCESS","FAILURE","ERROR") or (.status // "") == "COMPLETED")]|length' <<<"$J")
+             | select(((.state // "")|IN("SUCCESS","FAILURE","ERROR")) or (.status // "") == "COMPLETED")]|length' <<<"$J")
   [ "$done_status" -gt 0 ] && break
   paused=$(jq '.data.repository.pullRequest as $p | ($p.commits.nodes[0].commit.committedDate) as $lc
              | [$p.comments.nodes[]|select(.author.login|startswith("coderabbitai"))|select(.updatedAt>$lc)|select(.body|test("Reviews paused"))]|length' <<<"$J")

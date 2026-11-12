@@ -17,7 +17,7 @@ chmod +x "$B/gh" "$B/sleep"
 # status = SUCCESS, no review object; thread 1 last comment is an ack, thread 2 is open
 cat > "$B/resp-1.json" <<'EOF2'
 {"data":{"repository":{"pullRequest":{"commits":{"nodes":[{"commit":{"oid":"h1","committedDate":"2026-01-01T00:00:00Z",
- "statusCheckRollup":{"contexts":{"nodes":[{"context":"CodeRabbit","state":"SUCCESS"}]}}}}]},
+ "statusCheckRollup":{"contexts":{"nodes":[{"name":"CodeRabbit","status":"COMPLETED","conclusion":"SUCCESS"}]}}}}]},
  "reviews":{"nodes":[]},"comments":{"nodes":[]},
  "reviewThreads":{"nodes":[
   {"isResolved":false,"path":"a.ts","line":1,"comments":{"nodes":[{"databaseId":1,"author":{"login":"coderabbitai"},"body":"bug"}]},"last":{"nodes":[{"author":{"login":"coderabbitai"},"body":"Understood. We can address this in a follow-up."}]}},
@@ -28,7 +28,7 @@ ok status-stop-ack-skipped "$(run)" 1
 ok only-open-thread-listed "$(grep -c '^## .*b.ts' "$R/tasks/t/artifacts/coderabbit-r-rx.md")" 1
 # paused: walkthrough edited after the head commit, no status yet; second poll has the status
 cat > "$B/resp-2.json" <<'EOF2'
-{"data":{"repository":{"pullRequest":{"commits":{"nodes":[{"commit":{"oid":"h1","committedDate":"2026-01-01T00:00:00Z","statusCheckRollup":{"contexts":{"nodes":[]}}}}]},
+{"data":{"repository":{"pullRequest":{"commits":{"nodes":[{"commit":{"oid":"h1","committedDate":"2026-01-01T00:00:00Z","statusCheckRollup":{"contexts":{"nodes":[{"name":"CodeRabbit","status":"IN_PROGRESS","conclusion":null}]}}}}]},
  "reviews":{"nodes":[]},"comments":{"nodes":[{"author":{"login":"coderabbitai"},"createdAt":"2025-12-01T00:00:00Z","updatedAt":"2026-01-02T00:00:00Z","body":"Reviews paused"}]},"reviewThreads":{"nodes":[]}}}}}
 EOF2
 cp "$B/resp-1.json" "$B/resp-3.json"; cp "$B/resp-2.json" "$B/resp-4.json"; echo 2 > "$B/n"
