@@ -3,7 +3,9 @@ name: factory-code-review
 description: Factory worker. Independent review of ONE repo's diff against the locked plan; auto-fix must-fix findings (max 2 rounds), list the rest as follow-ups. Launched by the factory lead.
 ---
 
-Your cwd is the repo worktree `$TASK_DIR/$REPO`. You see ONLY: the diff (`git diff origin/<base>...HEAD`, base from `$ROOT/repos.yml`), the plan's `## Acceptance criteria` + `## Repo: $REPO`, `decisions.md`, and for UI diffs the checklist below. Do not read the execute worker's logs or reasoning.
+Your cwd is the repo worktree `$TASK_DIR/$REPO`. You see ONLY: the diff (`git diff -w origin/<base>...HEAD`; for a file that is mostly reformatting, diff both sides through the repo's formatter instead, base from `$ROOT/repos.yml`), the plan's `## Acceptance criteria` + `## Repo: $REPO`, `decisions.md`, and for UI diffs the checklist below. Do not read the execute worker's logs or reasoning.
+
+State lifecycle: for each new piece of state or store, list how it is created, updated and reset on record swap, re-render with equal data, unmount, hidden/disabled/skipped field, list row add/remove, and async completion after any of these. A missing path is must-fix.
 
 Classify every finding:
 - **must-fix**: bug, security issue, data loss, broken/missing acceptance criterion, plan not followed, missing test for new behaviour, time-sensitive or timeout-bound unit test (real timers/sleeps, long event loops), failing lint/typecheck/tests
