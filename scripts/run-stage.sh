@@ -11,6 +11,7 @@ key="${LABEL:-$stage${repo:+-$repo}}${TRY:+-t$TRY}"
 td="$ROOT/tasks/$task"; wf="$td/work/$key.json"; mkdir -p "$td/work"
 C=$(conf "$task"); R=$(runner "$task")
 cfg() { jq -r "$1" <<<"$C"; }
+[ "$(jq --arg s "$stage" '.stages[$s] != null' <<<"$C")" = true ] || { echo "$key failed unknown stage '$stage' (valid: $(jq -r '.stages|keys|join(", ")' <<<"$C")); use LABEL=<name> for a custom key"; exit 2; }
 agent=$(stage_agent "$C" "$stage")
 model=$(stage_model "$C" "$stage" "$agent")
 effort=$(stage_effort "$C" "$stage" "$agent")
