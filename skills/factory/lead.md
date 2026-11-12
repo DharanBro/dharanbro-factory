@@ -45,6 +45,9 @@ A missing scenario or screenshot -> write a brief naming what to cover and rerun
 ## CodeRabbit gate (after each `factory-execute` coderabbit-mode run)
 Check every thread in `artifacts/coderabbit-<repo>-r<n>.md` got a reply naming a commit: `gh api repos/<o>/<r>/pulls/<pr>/comments --paginate` shows a reply per thread. Never trust the worker's "n threads replied". A thread without a reply -> back to a worker with a brief. When the brief listed sites (e.g. every async completion), check the diff touches each one (`git show <sha> | grep`) and the summary has `sites checked:`; a missed site goes back to the worker.
 
+## CodeRabbit round chain
+After a coderabbit-mode worker pushes, call `cr-fetch.sh` at once (no sleep) and, only if the fix touched renderer, component or UI files, start the repo's UI test in parallel with that wait.
+
 ## Fix loop
 Up to `caps.fix_tries` per repo: `EXTRA="mode=fix report=<path>" TRY=<n> run-stage.sh $T factory-execute fix <repo>`. The report is the failing report itself, or a brief you write to `artifacts/brief-<repo>-t<n>.md` when it needs context: what failed, evidence paths, the suspected cause if known, and what "fixed" means. Never put a brief inline in EXTRA. Still failing after the cap -> write `tasks/$T/blocked.md` (repo, tries, last report path) and STOP.
 
