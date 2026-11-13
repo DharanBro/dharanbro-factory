@@ -5,4 +5,4 @@ set -euo pipefail
 ROOT="${FACTORY_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
 url="${1:?url}"
 mkdir -p "$ROOT/.browser-profile"
-exec "$("$ROOT/scripts/chrome-path.sh")" --user-data-dir="$ROOT/.browser-profile" "$url"
+exec "$("$SCRIPTS/chrome-path.sh")" --user-data-dir="$ROOT/.browser-profile" "$url"

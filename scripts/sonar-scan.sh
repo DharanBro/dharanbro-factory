@@ -80,7 +80,7 @@ gstatus=$(jq -r .projectStatus.status <<<"$st")
 L "$LOCAL/api/issues/search?componentKeys=$K&inNewCodePeriod=true&resolved=false&ps=500&s=SEVERITY&asc=false" > "$W/issues.json"
 git -C "$wt" diff -U0 --no-color "$mb" HEAD > "$W/branch.diff"
 L "$LOCAL/api/issues/search?componentKeys=$K&resolved=false&ps=500" > "$W/head-issues.json"
-both=$(python3 -I "$ROOT/scripts/sonar-verdict.py" "$W/issues.json" "$W/base-issues.json" "$W/head-issues.json" "$W/branch.diff")
+both=$(python3 -I "$SCRIPTS/sonar-verdict.py" "$W/issues.json" "$W/base-issues.json" "$W/head-issues.json" "$W/branch.diff")
 mine=$(sed -n 's/^A /- /p' <<<"$both"); added=$(sed -n 's/^B /- /p' <<<"$both")
 [ -n "$mine$added" ] && status=ERROR || status=OK
 {

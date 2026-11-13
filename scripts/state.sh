@@ -27,14 +27,14 @@ done_key() {
 
 wave_next() {
   local meta mode wv repos fe st list need r
-  meta=$(bash "$ROOT/scripts/plan-meta.sh" "$id") || exit 1
+  meta=$(bash "$SCRIPTS/plan-meta.sh" "$id") || exit 1
   mode=$(jq -r .pr_mode <<<"$meta")
   for wv in $(jq -r '.waves[].wave' <<<"$meta"); do
     repos=$(jq -r --argjson w "$wv" '.waves[] | select(.wave == $w) | .repos | join(" ")' <<<"$meta")
     fe=$(jq -r --argjson w "$wv" '(.waves[] | select(.wave == $w) | .repos) as $r | [.frontend[] | select(IN($r[]))] | join(" ")' <<<"$meta")
     for st in execute ui_test design_review code_review coderabbit_review ci_check; do
       list=$repos; [ "$st" = ui_test ] || [ "$st" = design_review ] && list=$fe
-      [ "$st" = coderabbit_review ] && list=$(for r in $repos; do if [ "$(bash "$ROOT/scripts/cr-enabled.sh" "$r")" = true ]; then echo "$r"; fi; done)
+      [ "$st" = coderabbit_review ] && list=$(for r in $repos; do if [ "$(bash "$SCRIPTS/cr-enabled.sh" "$r")" = true ]; then echo "$r"; fi; done)
       need=""; for r in $list; do done_key "$st-$r" || need="$need $r"; done
       [ -n "$need" ] && { echo "$wv $st$need"; return; }
     done

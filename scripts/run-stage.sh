@@ -34,12 +34,12 @@ skill_file="$ROOT/skills/$skill/SKILL.md"
 [ -f "$skill_file" ] || { echo "$key failed missing playbook $skill_file"; exit 2; }
 run=$(uuidgen); stamp="$td/work/$key.stamp"; : > "$stamp"   # RUN= marks this worker's session log for usage.sh
 rules="$ROOT/AGENTS.md and "; [ "$cwd" = "$ROOT" ] && rules=""   # sessions in the factory root auto-load AGENTS.md
-prompt="Follow ${rules}$skill_file exactly. TASK=$task ROOT=$ROOT TASK_DIR=$td REPO=${repo:--} KEY=$key RUN=$run ${EXTRA:+EXTRA=\"$EXTRA\" }Your LAST action must be: bash $ROOT/scripts/worker-done.sh $task $key <done|blocked|failed> \"<one-line summary>\" . Be terse in chat; put detail in files."
+prompt="Follow ${rules}$skill_file exactly. TASK=$task ROOT=$ROOT TASK_DIR=$td REPO=${repo:--} KEY=$key RUN=$run ${EXTRA:+EXTRA=\"$EXTRA\" }Your LAST action must be: bash $SCRIPTS/worker-done.sh $task $key <done|blocked|failed> \"<one-line summary>\" . Be terse in chat; put detail in files."
 
 # Standard Playwright MCP config: factory.yml passes it to Claude (stages.ui_test herdr_args); other backends via a wrapper.
 if [ "$stage" = ui_test ]; then
   mkdir -p "$ROOT/.browser-profile"
-  chrome=$("$ROOT/scripts/chrome-path.sh") || { echo "$key failed Chrome for Testing unavailable"; exit 2; }
+  chrome=$("$SCRIPTS/chrome-path.sh") || { echo "$key failed Chrome for Testing unavailable"; exit 2; }
   export FACTORY_UI_MCP_CONFIG="$td/work/ui-mcp.json"
   jq -n --arg exe "$chrome" --arg prof "$ROOT/.browser-profile" \
     '{mcpServers:{playwright:{command:"npx",args:["@playwright/mcp@latest","--executable-path",$exe,"--user-data-dir",$prof,"--headless"]}}}' \
@@ -121,7 +121,7 @@ else
   esac
 fi
 
-bash "$ROOT/scripts/usage.sh" log "$task" "$key" "$agent" "$run" "$stamp" || true; rm -f "$stamp"
+bash "$SCRIPTS/usage.sh" log "$task" "$key" "$agent" "$run" "$stamp" || true; rm -f "$stamp"
 if [ -s "$wf" ]; then
   status=$(jq -r .status "$wf"); summary=$(jq -r .summary "$wf")
 else

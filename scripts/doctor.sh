@@ -38,6 +38,6 @@ if command -v gh >/dev/null 2>&1; then
   if gh auth status >/dev/null 2>&1; then chk "gh auth" ok; else chk "gh auth" "MISSING (gh auth login)"; fail=1; fi
 fi
 
-if [ -f "$ROOT/secrets.env" ]; then bash "$ROOT/scripts/secrets-check.sh"; else chk secrets.env "missing (cp secrets.env.example secrets.env)"; fi
+if [ -f "$ROOT/secrets.env" ]; then bash "$SCRIPTS/secrets-check.sh"; else chk secrets.env "missing (cp secrets.env.example secrets.env)"; fi
 
 exit "$fail"
