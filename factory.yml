@@ -90,6 +90,11 @@ stages:
     agents:
       claude: { model: opus, effort: high, lean: true }
       codex:  { model: gpt-6-sol, effort: high }
+  design_review:
+    default: claude
+    agents:
+      claude: { model: opus, effort: high, lean: true, herdr_args: [--mcp-config, "{task_dir}/work/ui-mcp.json", --strict-mcp-config] }
+      codex:  { model: gpt-6-sol, effort: high }
   debug:
     default: claude
     agents:

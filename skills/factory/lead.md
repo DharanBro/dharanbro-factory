@@ -31,6 +31,7 @@ Before a wave's `execute` step, prepare each listed repo: no clone at `repos/<re
 |---|---|
 | execute | `run-stages.sh $T factory-execute execute "<repos>"` |
 | ui_test | Listed repos = this wave's frontend repos with `ui` not false (libraries are tested through their harness repo). `run-stages.sh $T factory-ui-test ui_test "<repos>"`. Per failed repo: `## Fix loop` with `artifacts/test-report-<repo>.md`, each fix followed by `TRY=<n> run-stage.sh $T factory-ui-test ui_test <repo>`. Summary starts with `AUTH_EXPIRED`: tell the user, run `ui-login.sh <dev_url>` (visible window), wait for "done", rerun that repo |
+| design_review | Same repo list as ui_test (frontend, `ui` not false). `run-stages.sh $T factory-design-review design_review "<repos>"`; never skip it because tests pass. Report has must-fix or should-fix: write `artifacts/brief-<repo>-design.md` from its spec (lead never edits code), `## Fix loop` with it, then rerun ui_test (next `TRY`) with the design acceptance checks added as a scenario. Nits: fix if inside the diff, else list as follow-ups for the PR body. Product questions: take the report's default when confident and log it in `decisions.md`, else ask the owner |
 | code_review | `run-stages.sh $T factory-code-review code_review "<repos>"`. A frontend repo whose `work/code_review-<repo>.json` has `"changed":true`: rerun its ui_test once (next `TRY`, same fix loop) |
 | ci_check | `run-stages.sh $T factory-ci-check ci_check "<repos>"`. Any `blocked` -> STOP (see `blocked.md`): a wave's PRs never open until every repo in it is green. Then `## Pre-PR gate` |
 | pr | `LABEL=pr-w<wave> EXTRA="repos=<a,b>" run-stage.sh $T factory-pr pr`. Print the wave's rows of `artifacts/prs.md`, then start `## CI on open PRs` for them |
@@ -47,6 +48,9 @@ Check every thread in `artifacts/coderabbit-<repo>-r<n>.md` got a reply naming a
 
 ## CodeRabbit round chain
 After a coderabbit-mode worker pushes, call `cr-fetch.sh` at once (no sleep) and, only if the fix touched renderer, component or UI files, start the repo's UI test in parallel with that wait.
+
+## Later fixes that change what users see
+CodeRabbit, review and bug fixes whose diff touches components, styles, layout or copy (`git diff --name-only` shows UI files, or `git diff` changes rendered strings) get a `factory-design-review` of the changed screens before push (`TRY=<n>`, `EXTRA="brief=<path>"` naming them); logic-only fixes skip it.
 
 ## Fix loop
 Up to `caps.fix_tries` per repo: `EXTRA="mode=fix report=<path>" TRY=<n> run-stage.sh $T factory-execute fix <repo>`. The report is the failing report itself, or a brief you write to `artifacts/brief-<repo>-t<n>.md` when it needs context: what failed, evidence paths, the suspected cause if known, and what "fixed" means. Never put a brief inline in EXTRA. Still failing after the cap -> write `tasks/$T/blocked.md` (repo, tries, last report path) and STOP.

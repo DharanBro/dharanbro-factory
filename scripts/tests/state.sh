@@ -23,7 +23,9 @@ wd execute-a; wd execute-b failed; wd execute-b-tools
 ok failed-is-not-done "$(s wave-next)" "1 execute b"
 wd execute-b-t2
 ok try-counts "$(s wave-next)" "1 ui_test a"
-wd ui_test-a; wd code_review-a; wd code_review-b; wd ci_check-a; wd ci_check-b
+wd ui_test-a
+ok design-review-after-ui-test "$(s wave-next)" "1 design_review a"
+wd design_review-a; wd code_review-a; wd code_review-b; wd ci_check-a; wd ci_check-b
 ok w1-pr "$(s wave-next)" "1 pr a b"
 wd pr-w1
 ok w1-merge "$(s wave-next)" "1 merge a b"

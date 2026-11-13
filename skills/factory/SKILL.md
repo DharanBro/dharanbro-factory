@@ -1,6 +1,6 @@
 ---
 name: factory
-description: Run the end-to-end dev pipeline for a Jira key or a plain-text idea (research, plan, review, grill, execute, UI test, code review, draft PRs). Pass the task or idea and optional `--from <stage>`. The lead itself follows `skills/factory/lead.md`.
+description: Run the end-to-end dev pipeline for a Jira key or a plain-text idea (research, plan, review, grill, execute, UI test, design review, code review, draft PRs). Pass the task or idea and optional `--from <stage>`. The lead itself follows `skills/factory/lead.md`.
 ---
 
 `ROOT` = this repo's root (two levels above this file). Run scripts as `bash $ROOT/scripts/<x>.sh`.
