@@ -32,8 +32,15 @@ else
   n=$(jq -R 'fromjson? | select(.type=="complete") | .findings' <<<"$cr" | tail -n 1)
   if [ -z "$n" ]; then fail "UNVERIFIED: CodeRabbit CLI returned no result (rate limit or error): $(tail -c 300 <<<"$cr" | tr '\n' ' ')"
   elif [ "$n" != 0 ]; then
-    fail "CodeRabbit CLI reported $n finding(s): fix each (or, if it is already handled, say where in the push summary), commit, run the gate again."
-    body="$body"$'\n'"## CodeRabbit CLI findings"$'\n'"$(jq -rR 'fromjson? | select(.type=="finding") | "- [\(.severity)] \(.fileName): \(.codegenInstructions // .title // "see CLI output")"' <<<"$cr")"$'\n'
+    # findings already answered in artifacts/push-gate-answers-<repo>.md (file + match key + reason) do not block; they are listed in the report
+    res=$(python3 -I "$ROOT/scripts/cr-answers.py" "$ROOT/tasks/$task/artifacts/push-gate-answers-$repo.md" <<<"$cr")
+    open=$(grep '^O ' <<<"$res" | cut -c3-); ans=$(grep '^A ' <<<"$res" | cut -c3-)
+    [ -n "$open$ans" ] || open="$n finding(s) reported but none could be read from the CLI output"
+    [ -z "$ans" ] || body="$body"$'\n'"## CodeRabbit CLI findings answered (no change needed)"$'\n'"$(sed 's/^/- /' <<<"$ans")"$'\n'
+    if [ -n "$open" ]; then
+      fail "CodeRabbit CLI reported $(wc -l <<<"$open" | tr -d ' ') open finding(s): fix each, commit, run the gate again. Only if existing code already handles one, add an answer line to artifacts/push-gate-answers-$repo.md."
+      body="$body"$'\n'"## CodeRabbit CLI findings"$'\n'"$(sed 's/^/- /' <<<"$open")"$'\n'
+    fi
   fi
 fi
 
