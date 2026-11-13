@@ -5,7 +5,7 @@
 #   1. base analysis = merge-base content, back-dated to the merge-base commit time (sonar.projectDate)
 #   2. new-code period = that analysis -> "new code" = exactly the lines this branch changed (SCM blame dates)
 #   3. head analysis = the worktree, gate evaluated on new code
-# Exit 0 = no issues on branch-changed lines, 1 = issues on branch-changed lines, 2 = not configured / server unreachable / scan failed (report as UNVERIFIED).
+# Exit 0 = no issues on branch-changed lines and no new issues in changed files (vs the base scan), 1 = either,  2 = not configured / server unreachable / scan failed (report as UNVERIFIED).
 # Task projects + scanner work dirs older than $SONAR_KEEP_DAYS (7) are deleted on every run (`prune` = only that).
 . "$(dirname "$0")/lib.sh"
 LOCAL="${SONAR_LOCAL_URL:-http://localhost:9100}"; KEEP_DAYS="${SONAR_KEEP_DAYS:-7}"
@@ -48,6 +48,7 @@ bdate=$(TZ=UTC git -C "$wt" show -s --date=format-local:%Y-%m-%dT%H:%M:%S%z --fo
 
 # base analysis: skip when this project already has one at the same merge-base
 have=$(L "$LOCAL/api/project_analyses/search?project=$K" 2>/dev/null | jq -r --arg mb "$mb" '[.analyses[]?|select(.projectVersion=="base" and .revision==$mb)]|length' || true)
+[ -f "$W/base-issues.json" ] || have=0   # the verdict needs the base scan's issues; rescan the base when they were not saved
 if [ "${have:-0}" -eq 0 ]; then
   L -X POST "$LOCAL/api/projects/delete" -d "project=$K" >/dev/null 2>&1 || true
   L -X POST "$LOCAL/api/projects/create" -d "project=$K" --data-urlencode "name=$K" >/dev/null
@@ -63,6 +64,7 @@ if [ "${have:-0}" -eq 0 ]; then
   [ $brc -eq 0 ] || grep -q "Analysis report uploaded" "$W/base.log" || { echo "base scan failed, see $W/base.log" >&2; exit 2; }
   akey=$(L "$LOCAL/api/project_analyses/search?project=$K" | jq -r '.analyses[]|select(.projectVersion=="base")|.key' | head -1)
   L -X POST "$LOCAL/api/new_code_periods/set" -d "project=$K" -d type=SPECIFIC_ANALYSIS -d "value=$akey" >/dev/null
+  L "$LOCAL/api/issues/search?componentKeys=$K&resolved=false&ps=500" > "$W/base-issues.json"   # ponytail: 500 = one page, paginate if a base ever has more
 fi
 
 # optional coverage (lcov path comes from the repo's own sonar-project.properties); failures only lose coverage data
@@ -77,27 +79,18 @@ gstatus=$(jq -r .projectStatus.status <<<"$st")
 # conditions and the new-code baseline can include untouched files, so it is reported for information only.
 L "$LOCAL/api/issues/search?componentKeys=$K&inNewCodePeriod=true&resolved=false&ps=500&s=SEVERITY&asc=false" > "$W/issues.json"
 git -C "$wt" diff -U0 --no-color "$mb" HEAD > "$W/branch.diff"
-mine=$(python3 -I - "$W/issues.json" "$W/branch.diff" <<'PY'
-import sys, json, re
-issues = json.load(open(sys.argv[1]))["issues"]
-ch, f = {}, None
-for l in open(sys.argv[2]):
-    if l.startswith("+++ b/"): f = l[6:].strip(); ch.setdefault(f, [])
-    elif l.startswith("@@") and f:
-        m = re.search(r"\+(\d+)(?:,(\d+))?", l); a = int(m.group(1)); n = int(m.group(2) or 1)
-        ch[f].append((a, a + n - 1))
-for i in issues:
-    path = i["component"].split(":", 1)[-1]; line = i.get("line") or 0
-    if path in ch and (line == 0 or any(a <= line <= b for a, b in ch[path])):
-        print(f"- [{i['severity']}] {i['rule']} {path}:{line} {i['message']}")
-PY
-)
-[ -n "$mine" ] && status=ERROR || status=OK
+L "$LOCAL/api/issues/search?componentKeys=$K&resolved=false&ps=500" > "$W/head-issues.json"
+both=$(python3 -I "$ROOT/scripts/sonar-verdict.py" "$W/issues.json" "$W/base-issues.json" "$W/head-issues.json" "$W/branch.diff")
+mine=$(sed -n 's/^A /- /p' <<<"$both"); added=$(sed -n 's/^B /- /p' <<<"$both")
+[ -n "$mine$added" ] && status=ERROR || status=OK
 {
   echo "# sonar: $repo ($(date -u +%FT%TZ))"; echo
   echo "Verdict **$status**: $([ -n "$mine" ] && echo "$(wc -l <<<"$mine" | tr -d ' ') issue(s) on lines changed by this branch" || echo "no issues on lines changed by this branch"). Server gate (whole project, info only): $gstatus. Dashboard: $LOCAL/dashboard?id=$K"; echo
-  echo "## Issues on branch changes"
+  echo "Also counted: new unresolved issues in changed files (not in the base scan): $([ -n "$added" ] && wc -l <<<"$added" | tr -d ' ' || echo 0)."; echo
+  echo "## Issues on branch changes (changed line, or a flow location on one)"
   [ -n "$mine" ] && echo "$mine" || echo "- none"
+  echo; echo "## New issues in changed files (not in the base scan; may sit on unchanged lines, e.g. S1541/S3776 on a function's first line)"
+  [ -n "$added" ] && echo "$added" || echo "- none"
   echo; echo "## Server gate conditions (info only, may include untouched code)"
   jq -r '.projectStatus.conditions[]|select(.status=="ERROR")|"- \(.metricKey): \(.actualValue) (fails when \(.comparator) \(.errorThreshold))"' <<<"$st"
   echo; echo "## Coverage"
