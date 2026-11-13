@@ -3,14 +3,14 @@
 # Single writer = the lead. Workers never touch state.json (they write work/<key>.json).
 # .stages holds intake..grill; `next` prints "waves" once those are done. Wave progress is never stored: `wave-next`
 # derives it from work/<step>-<repo>.json (any -t<n> try counts when its status is done) and prints the first
-# unfinished step as "<wave> <step> <repo...>" or "complete". Steps per wave, in order: execute, ui_test (the wave's
-# frontend repos), code_review, ci_check, pr (key pr-w<wave>), merge (key merge-w<wave>, pr_mode merge only).
+# unfinished step as "<wave> <step> <repo...>" or "complete". Steps per wave, in order: execute, ui_test and design_review (the wave's
+# frontend repos), code_review, coderabbit_review (only repos with `coderabbit: true` in repos.yml; others are skipped), ci_check, pr (key pr-w<wave>), merge (key merge-w<wave>, pr_mode merge only).
 # `reset` of a wave step archives that step's and later steps' work files to work/stale-<time>/; reset of an
 # earlier stage also archives every wave step's files.
 . "$(dirname "$0")/lib.sh"
 id="${1:?task}"; cmd="${2:?cmd}"; f="$ROOT/tasks/$id/state.json"; wd="$ROOT/tasks/$id/work"
 [ -f "$f" ] || { echo "no state for $id (run task-init.sh)" >&2; exit 1; }
-STEPS="execute ui_test code_review ci_check pr merge"
+STEPS="execute ui_test design_review code_review coderabbit_review ci_check pr merge"
 w() { jq "$@" "$f" > "$f.tmp" && mv "$f.tmp" "$f"; }
 
 # done_key <key>: work/<key>.json or work/<key>-t<n>.json exists with status done.
@@ -27,13 +27,14 @@ done_key() {
 
 wave_next() {
   local meta mode wv repos fe st list need r
-  meta=$(bash "$ROOT/scripts/plan-meta.sh" "$id") || exit 1
+  meta=$(bash "$SCRIPTS/plan-meta.sh" "$id") || exit 1
   mode=$(jq -r .pr_mode <<<"$meta")
   for wv in $(jq -r '.waves[].wave' <<<"$meta"); do
     repos=$(jq -r --argjson w "$wv" '.waves[] | select(.wave == $w) | .repos | join(" ")' <<<"$meta")
     fe=$(jq -r --argjson w "$wv" '(.waves[] | select(.wave == $w) | .repos) as $r | [.frontend[] | select(IN($r[]))] | join(" ")' <<<"$meta")
-    for st in execute ui_test code_review ci_check; do
-      list=$repos; [ "$st" = ui_test ] && list=$fe
+    for st in execute ui_test design_review code_review coderabbit_review ci_check; do
+      list=$repos; [ "$st" = ui_test ] || [ "$st" = design_review ] && list=$fe
+      [ "$st" = coderabbit_review ] && list=$(for r in $repos; do if [ "$(bash "$SCRIPTS/cr-enabled.sh" "$r")" = true ]; then echo "$r"; fi; done)
       need=""; for r in $list; do done_key "$st-$r" || need="$need $r"; done
       [ -n "$need" ] && { echo "$wv $st$need"; return; }
     done

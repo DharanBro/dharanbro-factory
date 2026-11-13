@@ -1,6 +1,6 @@
 # dharanbro-factory
 
-End-to-end dev pipeline: Jira key or plain-text idea -> research -> plan -> plan review -> grill (human) -> execute -> UI test -> code review -> CI check -> PRs. Entry point: `skills/factory/SKILL.md`; stage playbooks in `skills/`.
+End-to-end dev pipeline: Jira key or plain-text idea -> research -> plan -> plan review -> grill (human) -> execute -> UI test -> design review (frontend) -> code review -> CI check -> PRs. Entry point: `skills/factory/SKILL.md`; stage playbooks in `skills/`.
 
 ## Rules (all sessions, leads and workers)
 - Self-contained: never read or edit anything outside this folder, except the repo checkouts under `repos/` and `tasks/`.

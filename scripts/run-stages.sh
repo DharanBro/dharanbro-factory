@@ -8,8 +8,8 @@ task="${1:?}"; skill="${2:?}"; stage="${3:?}"; shift 3
 # shellcheck disable=SC2048,SC2086
 set -- $*   # repo names never contain spaces (repo-set.sh)
 case "${1:-}" in
-  --wave) repos=$(bash "$ROOT/scripts/plan-meta.sh" "$task" | jq -r --argjson w "${2:?wave number}" '.waves[] | select(.wave == $w) | .repos[]') ;;
-  --all)  repos=$(bash "$ROOT/scripts/plan-meta.sh" "$task" | jq -r '.repos[]') ;;
+  --wave) repos=$(bash "$SCRIPTS/plan-meta.sh" "$task" | jq -r --argjson w "${2:?wave number}" '.waves[] | select(.wave == $w) | .repos[]') ;;
+  --all)  repos=$(bash "$SCRIPTS/plan-meta.sh" "$task" | jq -r '.repos[]') ;;
   *)      repos="$*" ;;
 esac
 # shellcheck disable=SC2086
@@ -22,4 +22,4 @@ for r in "$@"; do
 done
 [ -z "$missing" ] || { echo "$stage failed missing dir(s):$missing (no worker started)"; exit 2; }
 max=$(conf "$task" | jq -r '.max_parallel_workers // 4')
-printf '%s\n' "$@" | xargs -P "$max" -I{} "$ROOT/scripts/run-stage.sh" "$task" "$skill" "$stage" {}
+printf '%s\n' "$@" | xargs -P "$max" -I{} "$SCRIPTS/run-stage.sh" "$task" "$skill" "$stage" {}
