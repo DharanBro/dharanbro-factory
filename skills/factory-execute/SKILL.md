@@ -23,11 +23,11 @@ All modes:
 6. At the end run the full test + lint + typecheck once.
 
 ## mode fix (`EXTRA` has `mode=fix report=<path>`)
-Read only that report (relative to `$TASK_DIR`). Fix the root cause of each failure with a regression test where feasible, commit `fix(<ID>): ...`. Do not widen scope. If the branch already has an open PR (`gh pr list --head <branch> --json number`), `git push` at the end (plain push, never force).
+Read only that report (relative to `$TASK_DIR`). Fix the root cause of each failure with a regression test where feasible, commit `fix(<ID>): ...`. Do not widen scope. If the branch already has an open PR (`gh pr list --head <branch> --json number`), push only after `bash $ROOT/scripts/push-gate.sh $TASK $REPO` exits 0 (fix every finding it reports, commit, rerun); then `git push` at the end (plain push, never force). `worker-done.sh` fails `done` without a gate record for the pushed sha.
 
 ## mode coderabbit (`EXTRA` has `mode=coderabbit comments=<path> pr=<n>`)
 For each comment in the file: if valid, fix it (commit `fix(<ID>): address review ...`). If already handled by existing code, reply on the thread instead: `gh api repos/<owner>/<repo>/pulls/<pr>/comments/<comment id>/replies -f body="@coderabbitai <where/how it is handled>"`. For each valid finding, grep the repo for the same pattern and fix every site; end your summary with `sites checked: <file:line ...>`.
-Reply on every thread in the same round, fixed or not, naming the commit (same `gh api` call, `@coderabbitai fixed in <sha>: <what>`). Push once at the end: `git push`.
+Reply on every thread in the same round, fixed or not, naming the commit (same `gh api` call, `@coderabbitai fixed in <sha>: <what>`). Push once at the end, only after `bash $ROOT/scripts/push-gate.sh $TASK $REPO` exits 0 (fix every finding it reports, commit, rerun); then `git push`.
 A valid finding is fixed in this PR. Reply without a fix only when existing code already handles it (say where). Never answer a valid finding with "follow-up" or "out of scope" unless decisions.md records the user's OK for that thread.
 
 Normal mode, before finishing: list slices whose `red=` is `none` or `0` in `$TASK_DIR/artifacts/tdd-flags.md` (one line each: slice, sha, subject). Flag only; do not redo them. For the retro. Skip the file if none.

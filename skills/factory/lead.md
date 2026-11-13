@@ -46,6 +46,9 @@ A missing scenario or screenshot -> write a brief naming what to cover and rerun
 ## CodeRabbit gate (after each `factory-execute` coderabbit-mode run)
 Check every thread in `artifacts/coderabbit-<repo>-r<n>.md` got a reply naming a commit: `gh api repos/<o>/<r>/pulls/<pr>/comments --paginate` shows a reply per thread. Never trust the worker's "n threads replied". A thread without a reply -> back to a worker with a brief. When the brief listed sites (e.g. every async completion), check the diff touches each one (`git show <sha> | grep`) and the summary has `sites checked:`; a missed site goes back to the worker.
 
+## Push gate
+Every push of a task branch goes through `bash $ROOT/scripts/push-gate.sh <task> <repo>` (Sonar verdict plus local CodeRabbit CLI review; exit 0 only). Workers run it before pushing and `worker-done.sh` fails `done` without a matching `work/push-gate-<repo>.ok`. Never report a push as clean, or accept "sonar OK", without `artifacts/push-gate-<repo>.md` saying PASS for the pushed sha. A pushed branch with no passing gate file goes back to a worker: fix the findings, rerun the gate, push again. If the gate says UNVERIFIED (CLI not authenticated, rate limit), tell the user and do not push.
+
 ## CodeRabbit round chain
 After a coderabbit-mode worker pushes, call `cr-fetch.sh` at once (no sleep) and, only if the fix touched renderer, component or UI files, start the repo's UI test in parallel with that wait.
 
