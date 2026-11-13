@@ -117,3 +117,4 @@ The biggest cost was **scope added after the PR opened**: the alert example, the
 | #4 CodeRabbit CLI before the PR | | pending (owner decision) |
 | #5 Sonar verdict against base issues | | pending (`scripts/sonar-scan.sh` has owner edits) |
 | #11 format-only base PR | | pending (owner decision) |
+| Owner request: mandatory design review for frontend work | c71b8a7 | done |
