@@ -100,6 +100,10 @@ stages:
     agents:
       claude: { model: opus, effort: high }
       codex:  { model: gpt-6-sol, effort: high }
+  coderabbit_review:
+    default: claude          # the CodeRabbit plugin only exists in Claude Code
+    agents:
+      claude: { model: sonnet, effort: medium, lean: true }
   ci_check:
     default: codex
     agents:

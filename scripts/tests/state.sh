@@ -2,7 +2,8 @@
 # state.sh: next stops at "waves"; wave-next walks every step of every wave from work files (tries count, a
 # look-alike repo name does not); reset archives wave work files.
 . "$(dirname "$0")/lib.sh"
-R=$(fake_root state.sh plan-meta.sh task-init.sh worker-done.sh)
+R=$(fake_root state.sh plan-meta.sh task-init.sh worker-done.sh cr-enabled.sh)
+printf 'repos:\n  a: {coderabbit: true}\n  b: {coderabbit: false}\n' > "$R/repos.yml"
 s() { FACTORY_ROOT="$R" bash "$R/scripts/state.sh" t "$@"; }
 wd() { FACTORY_ROOT="$R" bash "$R/scripts/worker-done.sh" t "$1" "${2:-done}" x; }
 FACTORY_ROOT="$R" bash "$R/scripts/task-init.sh" t >/dev/null
@@ -25,7 +26,10 @@ wd execute-b-t2
 ok try-counts "$(s wave-next)" "1 ui_test a"
 wd ui_test-a
 ok design-review-after-ui-test "$(s wave-next)" "1 design_review a"
-wd design_review-a; wd code_review-a; wd code_review-b; wd ci_check-a; wd ci_check-b
+wd design_review-a; wd code_review-a; wd code_review-b
+ok coderabbit-review-only-enabled-repos "$(s wave-next)" "1 coderabbit_review a"
+wd coderabbit_review-a; ok coderabbit-off-repo-skipped "$(s wave-next)" "1 ci_check a b"
+wd ci_check-a; wd ci_check-b
 ok w1-pr "$(s wave-next)" "1 pr a b"
 wd pr-w1
 ok w1-merge "$(s wave-next)" "1 merge a b"

@@ -118,5 +118,6 @@ The biggest cost was **scope added after the PR opened**: the alert example, the
 | Retro 2 gap 1: execute workers could push without Sonar or review (`push-gate.sh`; `worker-done.sh` fails `done` without a gate record for the pushed sha; execute, ci-check and lead playbooks) | a23f0b2 | done |
 | Retro 2 gap 2: local Sonar verdict missed S1541/S3776 on a function's unchanged first line (new `sonar-verdict.py`: changed lines or flow locations, plus new issues in changed files vs the base scan) | 8b9e67f | done |
 | #5 Sonar verdict against base issues, plus flow locations (verdict section only, owner's `sonar_hold` lines untouched) | 8b9e67f | done |
+| Owner decision: CodeRabbit review before push via plugin, opt-in per repo (`coderabbit: true`; new `coderabbit_review` stage + `factory-coderabbit-review` skill; push gate checks `cr-review-<repo>.md`, no longer runs the CLI) | see PR #11 | done |
 | #11 format-only base PR | | pending (owner decision) |
 | Owner request: mandatory design review for frontend work | c71b8a7 | done |

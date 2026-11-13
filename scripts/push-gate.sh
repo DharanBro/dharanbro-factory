@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # push-gate.sh <task> <repo>   Run before EVERY push of a task branch (workers and lead). Exit 0 = safe to push.
 # Checks, in the repo's worktree: tree clean, base branch merged in, Sonar verdict OK (when the repo has sonar.project_key),
-# local CodeRabbit CLI review of the branch diff has 0 findings. Anything it could not verify is a failure (UNVERIFIED), never a pass.
+# CodeRabbit review record (artifacts/cr-review-<repo>.md, written by the plugin review stage) is clean for HEAD, only for repos with
+# `coderabbit: true`. Anything it could not verify is a failure (UNVERIFIED), never a pass.
 # Writes artifacts/push-gate-<repo>.md; on pass writes work/push-gate-<repo>.ok holding the head sha. worker-done.sh refuses
 # `done` when a repo's pushed head (@{u}) has no matching .ok, so a push that skipped the gate cannot be reported clean.
 . "$(dirname "$0")/lib.sh"
@@ -25,23 +26,24 @@ if [ -n "$key" ]; then
   rm -f "$out.sonar"
 else body="Sonar: skipped, no sonar.project_key for $repo."$'\n'; fi
 
-if ! command -v coderabbit >/dev/null; then fail "UNVERIFIED: coderabbit CLI not installed."
-elif ! coderabbit auth status --agent 2>/dev/null | grep -q '"authenticated":true'; then fail "UNVERIFIED: CodeRabbit CLI not authenticated: run \`coderabbit auth login\`."
+# CodeRabbit: the review itself runs in the worker via the CodeRabbit plugin (skills/factory-coderabbit-review) and leaves
+# artifacts/cr-review-<repo>.md; the gate only checks that record. Repos without `coderabbit: true` skip it.
+rec="$ROOT/tasks/$task/artifacts/cr-review-$repo.md"; ans="$ROOT/tasks/$task/artifacts/push-gate-answers-$repo.md"
+if [ "$(bash "$ROOT/scripts/cr-enabled.sh" "$repo")" != true ]; then body="$body"$'\n'"CodeRabbit: skipped (off for $repo)."$'\n'
+elif [ ! -f "$rec" ]; then fail "CodeRabbit review missing: run the review in skills/factory-coderabbit-review/SKILL.md, it writes artifacts/cr-review-$repo.md."
+elif ! grep -qx "head: $head" "$rec" || ! grep -qx "result: clean" "$rec"; then
+  fail "CodeRabbit review record is not clean for HEAD ${head:0:10} (stale or unresolved): rerun the review after your last commit or merge."
 else
-  cr=$(coderabbit review --agent --type committed --base "origin/$base" --cwd "$wt" 2>&1) || true
-  n=$(jq -R 'fromjson? | select(.type=="complete") | .findings' <<<"$cr" | tail -n 1)
-  if [ -z "$n" ]; then fail "UNVERIFIED: CodeRabbit CLI returned no result (rate limit or error): $(tail -c 300 <<<"$cr" | tr '\n' ' ')"
-  elif [ "$n" != 0 ]; then
-    # findings already answered in artifacts/push-gate-answers-<repo>.md (file + match key + reason) do not block; they are listed in the report
-    res=$(python3 -I "$ROOT/scripts/cr-answers.py" "$ROOT/tasks/$task/artifacts/push-gate-answers-$repo.md" <<<"$cr")
-    open=$(grep '^O ' <<<"$res" | cut -c3-); ans=$(grep '^A ' <<<"$res" | cut -c3-)
-    [ -n "$open$ans" ] || open="$n finding(s) reported but none could be read from the CLI output"
-    [ -z "$ans" ] || body="$body"$'\n'"## CodeRabbit CLI findings answered (no change needed)"$'\n'"$(sed 's/^/- /' <<<"$ans")"$'\n'
-    if [ -n "$open" ]; then
-      fail "CodeRabbit CLI reported $(wc -l <<<"$open" | tr -d ' ') open finding(s): fix each, commit, run the gate again. Only if existing code already handles one, add an answer line to artifacts/push-gate-answers-$repo.md."
-      body="$body"$'\n'"## CodeRabbit CLI findings"$'\n'"$(sed 's/^/- /' <<<"$open")"$'\n'
-    fi
-  fi
+  # every finding line ends "fixed in <sha>" or "answered <file:line>"; an answered one also needs a `- <file> |` line in the answers file
+  while IFS= read -r l; do
+    case "$l" in
+      *"| fixed in "[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]*) ;;
+      *"| answered "*:[0-9]*) f=${l#- }; f=${f%% |*}
+        grep -qF -- "- $f |" "$ans" 2>/dev/null || fail "CodeRabbit finding answered without an entry in artifacts/push-gate-answers-$repo.md: $l" ;;
+      *) fail "CodeRabbit finding unresolved in cr-review-$repo.md: $l" ;;
+    esac
+  done < <(grep '^- ' "$rec")
+  body="$body"$'\n'"CodeRabbit: clean record for ${head:0:10} ($(grep -c '^- ' "$rec") finding(s) resolved)."$'\n'
 fi
 
 { echo "# push gate: $repo @ ${head:0:10} ($(date -u +%FT%TZ))"; echo
