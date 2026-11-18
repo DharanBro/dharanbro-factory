@@ -36,8 +36,8 @@ run=$(uuidgen); stamp="$td/work/$key.stamp"; : > "$stamp"   # RUN= marks this wo
 rules="$ROOT/AGENTS.md and "; [ "$cwd" = "$ROOT" ] && rules=""   # sessions in the factory root auto-load AGENTS.md
 prompt="Follow ${rules}$skill_file exactly. TASK=$task ROOT=$ROOT TASK_DIR=$td REPO=${repo:--} KEY=$key RUN=$run ${EXTRA:+EXTRA=\"$EXTRA\" }Your LAST action must be: bash $SCRIPTS/worker-done.sh $task $key <done|blocked|failed> \"<one-line summary>\" . Be terse in chat; put detail in files."
 
-# Standard Playwright MCP config: factory.yml passes it to Claude (stages.ui_test herdr_args); other backends via a wrapper.
-if [ "$stage" = ui_test ]; then
+# Standard Playwright MCP config: factory.yml passes it to Claude (stages.ui_test and design_review herdr_args); other backends via a wrapper.
+if [ "$stage" = ui_test ] || [ "$stage" = design_review ]; then
   mkdir -p "$ROOT/.browser-profile"
   chrome=$("$SCRIPTS/chrome-path.sh") || { echo "$key failed Chrome for Testing unavailable"; exit 2; }
   export FACTORY_UI_MCP_CONFIG="$td/work/ui-mcp.json"

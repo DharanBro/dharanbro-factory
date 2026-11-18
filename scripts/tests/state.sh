@@ -23,10 +23,10 @@ ok w1-execute "$(s wave-next)" "1 execute a b"
 wd execute-a; wd execute-b failed; wd execute-b-tools
 ok failed-is-not-done "$(s wave-next)" "1 execute b"
 wd execute-b-t2
-ok try-counts "$(s wave-next)" "1 ui_test a"
-wd ui_test-a
-ok design-review-after-ui-test "$(s wave-next)" "1 design_review a"
-wd design_review-a; wd code_review-a; wd code_review-b
+ok try-counts "$(s wave-next)" "1 design_review a"
+wd design_review-a
+ok ui-test-after-design-review "$(s wave-next)" "1 ui_test a"
+wd ui_test-a; wd code_review-a; wd code_review-b
 ok coderabbit-review-only-enabled-repos "$(s wave-next)" "1 coderabbit_review a"
 wd coderabbit_review-a; ok coderabbit-off-repo-skipped "$(s wave-next)" "1 ci_check a b"
 wd ci_check-a; wd ci_check-b
@@ -35,8 +35,8 @@ wd pr-w1
 ok w1-merge "$(s wave-next)" "1 merge a b"
 wd merge-w1
 ok w2-execute "$(s wave-next)" "2 execute c"
-s reset ui_test
-ok reset-step "$(s wave-next)" "1 ui_test a"
+s reset design_review
+ok reset-step "$(s wave-next)" "1 design_review a"
 ok reset-kept-execute "$(find "$R/tasks/t/work" -maxdepth 1 -name 'execute-*.json' | wc -l | tr -d ' ')" 4
 s reset grill
 ok reset-stage "$(s next) $(find "$R/tasks/t/work" -maxdepth 1 -name '*.json' | wc -l | tr -d ' ')" "grill 0"
