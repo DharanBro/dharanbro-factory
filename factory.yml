@@ -21,11 +21,11 @@ agents:
       lean_args: [--disable-slash-commands, --settings, "{root}/claude-worker-settings.json", --mcp-config, "{root}/worker-mcp.json", --strict-mcp-config]
   codex:
     headless:
-      command: [codex, exec, --approve-for-me, --model, "{model}", -c, "model_reasoning_effort={effort}", --add-dir, "{root}", --add-dir, "{task_dir}", "-"]
+      command: [codex, exec, --dangerously-bypass-approvals-and-sandbox, --model, "{model}", -c, "model_reasoning_effort={effort}", --add-dir, "{root}", --add-dir, "{task_dir}", "-"]
       prompt_delivery: stdin
     herdr:
       kind: codex
-      args: [--model, "{model}", -c, "model_reasoning_effort={effort}", --add-dir, "{root}", --add-dir, "{task_dir}"]
+      args: [--dangerously-bypass-approvals-and-sandbox, --model, "{model}", -c, "model_reasoning_effort={effort}", --add-dir, "{root}", --add-dir, "{task_dir}"]
       hc_args: [--no-daemon]   # hc: otherwise codex runs its commands outside the hc terminal
 
 caps:
