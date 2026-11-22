@@ -11,11 +11,11 @@ keep_done_tabs: false        # Herdr only
 agents:
   claude:
     headless:
-      command: [claude, -p, --model, "{model}", --effort, "{effort}", --add-dir, "{root}", --add-dir, "{task_dir}"]
+      command: [claude, -p, --dangerously-skip-permissions, --model, "{model}", --effort, "{effort}", --add-dir, "{root}", --add-dir, "{task_dir}"]
       prompt_delivery: argument
     herdr:
       kind: claude
-      args: [--model, "{model}", --effort, "{effort}", --add-dir, "{root}", --add-dir, "{task_dir}"]
+      args: [--dangerously-skip-permissions, --model, "{model}", --effort, "{effort}", --add-dir, "{root}", --add-dir, "{task_dir}"]
       # Workers read their skill by path and never used the skill listing, most plugins or MCP servers,
       # which cost ~20K tokens per turn. Keep a flag after --mcp-config: it swallows the next bare argument.
       lean_args: [--disable-slash-commands, --settings, "{root}/claude-worker-settings.json", --mcp-config, "{root}/worker-mcp.json", --strict-mcp-config]
