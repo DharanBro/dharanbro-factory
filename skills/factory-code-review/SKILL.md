@@ -7,7 +7,7 @@ Your cwd is the repo worktree `$TASK_DIR/$REPO`. You see ONLY: the diff (`git di
 
 Classify every finding:
 - **must-fix**: bug, security issue, data loss, broken/missing acceptance criterion, plan not followed, missing test for new behaviour, time-sensitive or timeout-bound unit test (real timers/sleeps, long event loops), failing lint/typecheck/tests
-- **should-fix**: maintainability, naming, duplication of an existing helper
+- **should-fix**: maintainability, naming, duplication of an existing helper, central code that checks which variant it has, or special-cases one item by name, where each variant could own the behaviour, metadata kept in a second list away from where the thing is registered
 - **nit**: style
 
 If the diff changes UI code (components, markup, styles), also check its changed lines against `$ROOT/skills/factory-code-review/ui-checklist.md`, using the classes above. A rule broken in a way a user hits (keyboard or screen-reader access, focus, form labels and errors, empty/loading/error states, destructive action with no confirm or undo) is must-fix; any other rule is a nit. Skip rules the repo's design system already handles. Prefix these findings `[wig]` in the report.
