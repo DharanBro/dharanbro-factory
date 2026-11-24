@@ -1,6 +1,6 @@
 # UI craft
 
-Read before your first UI slice. The repo's design system (disco-ui components and variants, its tokens, type scale, colours, depth, radius and motion) wins over anything here. This guide covers what the design system leaves to you: hierarchy, composition, states, reuse and polish.
+Read before your first UI slice. The repo's design system (its components and variants, its tokens, type scale, colours, depth, radius and motion) wins over anything here. This guide covers what the design system leaves to you: hierarchy, composition, states, reuse and polish.
 
 # Intent First
 
@@ -69,7 +69,7 @@ The most common way AI degrades a codebase: it hand-rolls what already exists. A
 
 ## Styling: system → component → token → utility
 
-1. **Use the design system.** disco-ui components, a CVA variant set, the theme: use `<Button variant="…">` and the existing variants before writing a one-off. Match the codebase's styling convention; don't introduce your own.
+1. **Use the design system.** Its components, variant sets and theme: use `<Button variant="…">` and the existing variants before writing a one-off. Match the codebase's styling convention; don't introduce your own.
 2. **When a styled element repeats, extract a component.** The same utility string on nine buttons is duplication. One component (or one CVA variant) owns it. Extract on the second real reuse, not the first.
 3. **Bind to semantic tokens, not hardcoded literals.** `bg-card border-border text-muted-foreground`, not `bg-white border-gray-200 text-gray-500`. Raw values break theming and dark mode.
 4. **Inline utilities are for genuine one-offs.** The same long className sprayed everywhere is a missing component or token.
@@ -128,7 +128,7 @@ Use the design system's motion tokens when it has them. Motion should be felt, n
 
 ---
 
-Adapted from [interface-design](https://github.com/Dammyjay93/interface-design) (`.claude/skills/interface-design/SKILL.md`, commit `2f9be32`): human-facing workflow, new-direction exploration and design-system-level rules removed, examples and a few lines changed to fit Encore and defer to the repo's design system. Original licence:
+Adapted from [interface-design](https://github.com/Dammyjay93/interface-design) (`.claude/skills/interface-design/SKILL.md`, commit `2f9be32`): human-facing workflow, new-direction exploration and design-system-level rules removed, examples and a few lines changed to defer to the repo's design system. Original licence:
 
 ```text
 MIT License
