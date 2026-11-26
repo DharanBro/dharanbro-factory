@@ -153,7 +153,7 @@ Rules for UI code. Check only the lines the diff changes; how to classify findin
 
 ---
 
-Adapted from [Web Interface Guidelines](https://github.com/vercel-labs/web-interface-guidelines) (`command.md`, commit `434b7f9`): review preamble, output format and the hydration rules (Encore has no server rendering) removed. Original licence:
+Adapted from [Web Interface Guidelines](https://github.com/vercel-labs/web-interface-guidelines) (`command.md`, commit `434b7f9`): review preamble, output format and the hydration rules (no server rendering here) removed. Original licence:
 
 ```text
 MIT License
