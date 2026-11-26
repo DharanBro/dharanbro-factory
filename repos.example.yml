@@ -20,7 +20,7 @@ repos:
     sonar:                         # optional: mirrored into local SonarQube by scripts/sonar-sync.sh
       project_key: example-dashboard   # key on the org SonarQube server
       url: http://localhost:9100       # local factory-sonar
-    coderabbit: true               # /factory-review runs the CodeRabbit loop for this repo
+    coderabbit: true               # default off. On: CodeRabbit plugin review before every push (coderabbit_review stage + push gate) and the /factory-review loop
   example-ui-kit:
     remote: git@github.com:your-org/example-ui-kit.git
     branch: main

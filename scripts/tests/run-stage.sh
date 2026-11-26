@@ -83,5 +83,7 @@ touch "$B/dead"; rm -f "$B/prompt"   # herdr: lead gone; hc: lead finishes after
 ok hc-lead "$(ll)" "LAUNCHED space t"
 ok hc-lead-space "$(jq -r .hc_space "$R/tasks/t/work/workspace.json")" sp1
 ok hc-lead-shell-closed "$(grep -c -e 'kill t9' -e 'rm t9' "$B/hc-calls")" 2
+us=$(FACTORY_ROOT="$R" bash "$R/scripts/run-stage.sh" t factory-debug nope 2>&1 || true)
+ok unknown-stage-msg "$(grep -c "unknown stage 'nope' (valid: .*LABEL=" <<<"$us")" 1
 rm -rf "$R"
 finish

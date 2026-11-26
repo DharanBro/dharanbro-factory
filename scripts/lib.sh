@@ -2,6 +2,8 @@
 # Shared helpers. Source me: . "$(dirname "$0")/lib.sh"
 set -euo pipefail
 ROOT="${FACTORY_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+# Sibling scripts resolve next to this file, never under $ROOT (FACTORY_ROOT may point at another checkout).
+SCRIPTS="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # The factory's own hc and herdr-app (scripts/init.sh links or installs them into bin/) win over the system's.
 case ":$PATH:" in *":$ROOT/bin:"*) ;; *) PATH="$ROOT/bin:$PATH" ;; esac
 # Tokens for every script; hosted workers start fresh shells.
